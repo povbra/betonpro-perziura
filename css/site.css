@@ -317,4 +317,4 @@ body{margin:0;background:var(--bp-popierius)}
 .forma-sekme:focus{outline:none}
 .forma-sekme h3{margin:0;font-weight:700;font-size:22px;line-height:1.2;display:flex;align-items:center;gap:10px}
 /* Mobilus pirmo ekrano ir programėlių blokas: turi būti po sugeneruotomis .s-* taisyklėmis */
-@media (max-width:900px){.comp{display:flex;flex-direction:column;gap:12px}.comp .s-026{position:static;width:100%;height:320px}.comp .s-029{position:relative;left:50%;top:auto;margin:-88px 0 -88px -280px;transform:scale(.5) rotate(-18deg);transform-origin:50% 50%;flex:none;align-self:flex-start}.comp .s-055,.comp .s-060{position:static;left:auto;top:auto;width:100%}.mstack .s-179{flex:0 0 auto;width:100%}}
+@media (max-width:900px){.comp{display:flex;flex-direction:column;gap:12px}.comp .s-026{position:static;width:100%;height:320px}.comp .s-027{top:266px}.comp .s-029{position:relative;left:50%;top:auto;margin:-88px 0 -88px -280px;transform:scale(.5) rotate(-18deg);transform-origin:50% 50%;flex:none;align-self:flex-start}.comp .s-055,.comp .s-060{position:static;left:auto;top:auto;width:100%}.mstack .s-179{flex:0 0 auto;width:100%}}

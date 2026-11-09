@@ -150,9 +150,13 @@
     var laikmatis = setTimeout(function () { valdiklis.abort(); }, LAIKAS_MS);
     busenaSiunciama(true);
 
-    fetch(forma.getAttribute('action'), {
+    var adresas = forma.getAttribute('action');
+    // Google Apps Script neatsako į CORS išankstinę užklausą, todėl jam tas pats JSON siunčiamas kaip text/plain.
+    var tipas = adresas.indexOf('https://script.google.com/') === 0 ? 'text/plain;charset=utf-8' : 'application/json';
+
+    fetch(adresas, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': tipas, Accept: 'application/json' },
       body: JSON.stringify(duomenys()),
       signal: valdiklis.signal,
     }).then(function (ats) {

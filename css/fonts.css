@@ -1,0 +1,177 @@
+/* Šriftai talpinami savame serveryje (ne Google Fonts) – BDAR: lankytojo IP neperduodamas Google. Licencija: SIL OFL 1.1 (fonts/LICENSE-*.txt). */
+/* archivo-latin-ext-500-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fonts/archivo-latin-ext-500-normal.woff2) format('woff2');
+}
+/* archivo-latin-500-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fonts/archivo-latin-500-normal.woff2) format('woff2');
+}
+/* archivo-latin-ext-600-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fonts/archivo-latin-ext-600-normal.woff2) format('woff2');
+}
+/* archivo-latin-600-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fonts/archivo-latin-600-normal.woff2) format('woff2');
+}
+/* archivo-latin-ext-700-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url(../fonts/archivo-latin-ext-700-normal.woff2) format('woff2');
+}
+/* archivo-latin-700-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url(../fonts/archivo-latin-700-normal.woff2) format('woff2');
+}
+/* archivo-latin-ext-800-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url(../fonts/archivo-latin-ext-800-normal.woff2) format('woff2');
+}
+/* archivo-latin-800-normal */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url(../fonts/archivo-latin-800-normal.woff2) format('woff2');
+}
+/* inter-latin-ext-400-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(../fonts/inter-latin-ext-400-normal.woff2) format('woff2');
+}
+/* inter-latin-400-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(../fonts/inter-latin-400-normal.woff2) format('woff2');
+}
+/* inter-latin-ext-500-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fonts/inter-latin-ext-500-normal.woff2) format('woff2');
+}
+/* inter-latin-500-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fonts/inter-latin-500-normal.woff2) format('woff2');
+}
+/* inter-latin-ext-600-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fonts/inter-latin-ext-600-normal.woff2) format('woff2');
+}
+/* inter-latin-600-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fonts/inter-latin-600-normal.woff2) format('woff2');
+}
+/* inter-latin-ext-700-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url(../fonts/inter-latin-ext-700-normal.woff2) format('woff2');
+}
+/* inter-latin-700-normal */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url(../fonts/inter-latin-700-normal.woff2) format('woff2');
+}
+/* ibm-plex-mono-latin-ext-400-normal */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(../fonts/ibm-plex-mono-latin-ext-400-normal.woff2) format('woff2');
+}
+/* ibm-plex-mono-latin-400-normal */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(../fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2');
+}
+/* ibm-plex-mono-latin-ext-500-normal */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fonts/ibm-plex-mono-latin-ext-500-normal.woff2) format('woff2');
+}
+/* ibm-plex-mono-latin-500-normal */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url(../fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2');
+}
+/* ibm-plex-mono-latin-ext-600-normal */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fonts/ibm-plex-mono-latin-ext-600-normal.woff2) format('woff2');
+}
+/* ibm-plex-mono-latin-600-normal */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url(../fonts/ibm-plex-mono-latin-600-normal.woff2) format('woff2');
+}

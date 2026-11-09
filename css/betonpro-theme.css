@@ -1,0 +1,63 @@
+/* BetonPro tema – sugeneruota iš tokens.json (BetonPro dizaino sistema v1). Kampai visada 0. */
+:root{
+  --bp-juoda:#15171A;
+  --bp-pilka:#5A5F66;
+  --bp-geltona:#F5C518;
+  --bp-geltona-tamsi:#E2B210;
+  --bp-popierius:#FAF9F6;
+  --bp-betonas:#ECEAE4;
+  --bp-linija:#D9D6CE;
+  --bp-balta:#FFFFFF;
+  --bp-grafitas:#4A4F55;
+  --bp-plienas:#A9AEB4;
+  --bp-sidabras:#C9CCD0;
+  --bp-dekoras:#8C9298;
+  --bp-tamsi-1:#17191C;
+  --bp-tamsi-2:#1C1F23;
+  --bp-tamsi-3:#23272B;
+  --bp-tamsi-linija:#2E3238;
+  --bp-tamsi-takelis:#111316;
+  --duom-gyva:#3DDC97;
+  --duom-atlikta:#2C7A5B;
+  --duom-siurblys:#3B5B8C;
+  --duom-dabar:#E5533D;
+  --fonas:var(--bp-popierius);
+  --fonas-alt:var(--bp-betonas);
+  --kortele:var(--bp-balta);
+  --tekstas:var(--bp-juoda);
+  --tekstas-2:var(--bp-grafitas);
+  --tekstas-3:var(--bp-pilka);
+  --linija:var(--bp-linija);
+  --akcentas:var(--bp-geltona);
+  --ant-akcento:var(--bp-juoda);
+  --juosta:var(--bp-pilka);
+  --fokusas:var(--bp-juoda);
+  --sriftas-display:Archivo, "Inter Display", system-ui, sans-serif;
+  --sriftas-sans:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sriftas-mono:"IBM Plex Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --space-4:4px;
+  --space-8:8px;
+  --space-12:12px;
+  --space-16:16px;
+  --space-24:24px;
+  --space-26:26px;
+  --space-32:32px;
+  --space-40:40px;
+  --space-56:56px;
+  --space-72:72px;
+  --space-96:96px;
+  --turinio-plotis:1280px;
+  --radius:0;
+  --seselis-kortele:0 24px 60px rgba(0,0,0,0.35);
+  --seselis-ekranas:0 40px 90px rgba(21,23,26,0.35);
+}
+.tamsi{
+  --fonas:var(--bp-juoda);
+  --fonas-alt:var(--bp-tamsi-1);
+  --kortele:var(--bp-tamsi-2);
+  --tekstas:var(--bp-popierius);
+  --tekstas-2:var(--bp-sidabras);
+  --tekstas-3:var(--bp-plienas);
+  --linija:var(--bp-tamsi-linija);
+  --fokusas:var(--bp-geltona);
+}

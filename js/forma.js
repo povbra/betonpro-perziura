@@ -138,6 +138,13 @@
     }).catch(function () { return null; });
   }
 
+  // Formų tarpininkas gali atsakyti 200 su { success: false } (pvz., adresas dar neaktyvuotas).
+  function priimta(ats) {
+    return ats.json().then(function (d) {
+      return !(d && (d.success === false || d.success === 'false'));
+    }).catch(function () { return true; });
+  }
+
   function siusti() {
     var valdiklis = new AbortController();
     var laikmatis = setTimeout(function () { valdiklis.abort(); }, LAIKAS_MS);
@@ -145,11 +152,11 @@
 
     fetch(forma.getAttribute('action'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(duomenys()),
       signal: valdiklis.signal,
     }).then(function (ats) {
-      if (ats.ok) return rodytiSekme();
+      if (ats.ok) return priimta(ats).then(function (taip) { if (taip) rodytiSekme(); else rodytiServerioKlaida(); });
       var galiButiLaukai = ats.status >= 400 && ats.status < 500;
       return (galiButiLaukai ? serverioLaukai(ats) : Promise.resolve(null)).then(function (klaidos) {
         if (!klaidos || !rodytiKlaidas(klaidos)) rodytiServerioKlaida();

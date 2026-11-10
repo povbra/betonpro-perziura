@@ -14,7 +14,7 @@ Visi laukų pavadinimai sutampa su BetonPro DB (atkurta schema, 2026-11-03). Tik
 | 4 | Iškrovimo pradžia | `iskrovimo_pradzia` | vairuotojas | „Pradėjau iškrauti“ |
 | 5 | Iškrovimo pabaiga | `iskrovimo_pabaiga` | vairuotojas | „Baigiau iškrauti“ → `status = 3` |
 | 6 | Išvykimas iš kliento | `isvyko_obj` | vairuotojas | „Išvykstu iš objekto“ |
-| 7 | Grįžimas į betono mazgą (neprivaloma) | `gryzo` | vairuotojas | „Grįžau į mazgą“; jei kito reiso nėra – „Kito reiso nėra – baigti pristatymą“ (`gryzo` lieka NULL) |
+| 7 | Grįžimas į betono mazgą | `gryzo` | vairuotojas | „Grįžau į mazgą“ – **tik jei betonvežiui priskirtas kitas reisas**. Jei kito reiso nėra, statusas nerodomas, pristatymas baigiamas išvykus iš objekto (`gryzo` = NULL) |
 | 8 | Pateikimas pasirašyti | – | vairuotojas | „Pateikti pasirašyti“ → SMS klientui pasirašyti važtaraštį (esama logika) |
 
 Kiti laukai, kuriuos forma keičia: `distance` (km mazgas–objektas, **viena kryptis**, ne ×2), `driver`, `driver_tel`, `transp` (vairuotojo patvirtinti duomenys), `driver_accepted = 1`, `phone_confirmed = 1`.
@@ -50,10 +50,13 @@ Dabartinė spraga: išsaugojimas nesusietas su nuorodos žetonu – pakeitus ID 
 - `POST ...&act=reisas_pateikti` `{ token, distance, driver, driver_tel, transp }` → `status = 3`, SMS klientui pasirašyti.
 - Kiekvienas veiksmas – į užsakymo istoriją su žyma „(SMS Tracker)“ (formoje tai `istorija` masyvas).
 
-## 4. GPS
+## 4. Vieta (telefono GPS)
 
-- Telefono GPS: `navigator.geolocation` tik kol forma atidaryta; koordinatės pridedamos prie kiekvieno paspaudimo (`lat`, `lon`, `acc`). Saugoti `automotive_coord` arba naujoje lentelėje.
-- Vežėjo GPS: per vežėjo API arba TinyTracker (`automotive_cars.gps`, `last_x`, `last_y`). Teste – tik pasirinkimas.
+- Vairuotojas paspaudžia „Įjungti“ → `navigator.geolocation` (tik kol forma atidaryta). Koordinatės pridedamos prie kiekvieno statuso paspaudimo (`lat`, `lon`, `acc`) ir rodomos ataskaitoje kaip nuoroda į žemėlapį. Saugoti `automotive_coord` arba naujoje lentelėje.
+
+## 4a. Statusų juosta
+
+Juoda – įvykę statusai, geltona – dabartinis (paskutinis įvykęs), pilka – laukiantys. Atšaukti galima tik paskutinį vairuotojo statusą (10 s pranešime arba mygtuku). Apsauga nuo dvigubo paspaudimo – 0,6 s.
 
 ## 5. Ataskaita
 

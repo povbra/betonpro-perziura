@@ -115,7 +115,7 @@
       },
       planuota_objekte: t - 2 * 60000 + r.iki_objekto_min * 60000,
       taisymai: {}, istorija: [], vieta: { ijungta: false, taskai: {} },
-      kokybe: { yra: false, ql_slankumas: 0, ql_vanduo: 1, ql_pump: 1, vanduo: '', grazintas_betonas: '', grazinto_betono_priezastis: '', kiekis: false, kita: false, quality_comment: '', apsiplovimas: false },
+      kokybe: { yra: false, ql_slankumas: 0, ql_vanduo: 1, ql_pump: 1, vanduo: '', grazintas_betonas: '', grazinto_betono_priezastis: '', kiekis: false, kita: false, patvirtinta: false, apsiplovimas: false },
       pranesimai: [], juodrastis: '',
       pateikta: null, siuntimas: null
     };
@@ -162,21 +162,23 @@
   function irasyti(laukas, kitasEkranas) {
     var t = now();
     S.ord_trans[laukas] = t;
-    if (laukas === 'iskrovimo_pabaiga') S.ord_trans.status = 3;
+    // ord_trans.status kaip BetonPro vairuotojo programėlėje: atvyko 6, pabaiga 7, išvyko iš objekto 8 (be kito reiso – 3), grįžo 3.
+    S.ord_trans.status = { atvyko: 6, iskrovimo_pradzia: 6, iskrovimo_pabaiga: 7, isvyko_obj: arKitas() ? 8 : 3, gryzo: 3 }[laukas] || S.ord_trans.status;
     if (vieta && S.vieta.ijungta) S.vieta.taskai[laukas] = vieta;
     log(laukas, t);
-    S.ekranas = kitasEkranas;
+    S.ekranas = ekranasPagalBusena();
     save(); render(); window.scrollTo(0, 0);
     toast(STATUSAI[idx(laukas)].t + ' · ' + hm(t), 'Atšaukti', function () { atsaukti(laukas); }, 10000);
   }
   // Atšaukti galima tik paskutinį įrašytą vairuotojo statusą.
   function atsaukti(laukas) {
     var p = paskutinisIvykes();
-    if (p < 0 || STATUSAI[p].src !== 'vairuotojas' || S.pateikta) return;
+    if (p < 0 || STATUSAI[p].src !== 'vairuotojas') return;
+    if (S.pateikta && p <= idx('iskrovimo_pabaiga')) return; // pasirašyti pateikti laikai nebeatšaukiami
     if (laukas && STATUSAI[p].f !== laukas) return;
     var f = STATUSAI[p].f;
     S.ord_trans[f] = null; delete S.vieta.taskai[f]; delete S.taisymai[f];
-    if (f === 'iskrovimo_pabaiga') S.ord_trans.status = 1;
+    S.ord_trans.status = { atvyko: 2, iskrovimo_pradzia: 6, iskrovimo_pabaiga: 6, isvyko_obj: 7, gryzo: 8 }[f] || S.ord_trans.status;
     log(f, null, 'atšaukta');
     S.ekranas = ekranasPagalBusena(); save(); toastHide(); render();
     toast(STATUSAI[p].t + ' atšauktas.');
@@ -187,15 +189,16 @@
     if (!o.atvyko) return 'kelyje';
     if (!o.iskrovimo_pradzia) return 'laukia';
     if (!o.iskrovimo_pabaiga) return 'iskrauna';
-    if (!o.isvyko_obj) return 'pabaiga';
+    if (!S.pateikta) return 'pateikimas';   // laikų patvirtinimas ir kokybė – iškart po iškrovimo, dar objekte
+    if (!o.isvyko_obj) return 'isvykimas';
     if (arKitas() && !o.gryzo) return 'grizimas';
-    return 'pateikimas';
+    return 'baigta';
   }
 
   /* ---------- Bendri blokai ---------- */
   // Juosta rodo realų reiso statusą: juoda – įvykę, geltona – dabartinis (paskutinis įvykęs), pilka – laukiantys.
   function juosta() {
-    var cur = S.pateikta ? -1 : paskutinisIvykes();
+    var cur = ekranasPagalBusena() === 'baigta' ? -1 : paskutinisIvykes();
     var h = '<ol class="bpst" style="grid-template-columns:repeat(' + STATUSAI.length + ',minmax(0,1fr))" aria-label="Reiso statusas">';
     STATUSAI.forEach(function (s, i) {
       var cls = S.ord_trans[s.f] ? (i === cur ? 'c' : 'd') : '';
@@ -327,15 +330,14 @@
     };
   };
 
-  E.pabaiga = function () {
-    var o = S.ord_trans, skirt = mins(o.atvyko, S.planuota_objekte);
-    var planas = skirt > 0 ? 'Atvykote ' + skirt + ' min anksčiau nei planuota.' : skirt < 0 ? 'Atvykote ' + Math.abs(skirt) + ' min vėliau nei planuota.' : 'Atvykote laiku.';
-    var amz = mins(o.salytis, o.iskrovimo_pabaiga);
+  E.isvykimas = function () {
+    var o = S.ord_trans;
     return {
-      b: juosta() +
+      b: juosta() + siuntimoBusena() +
         '<div class="card"><span class="kick">Iškrovimas baigtas · ' + hm(o.iskrovimo_pabaiga) + '</span><h1>Ačiū, betonas pristatytas</h1>' +
-        '<span class="muted">' + esc(planas) + ' Laikas nuo W/C sąlyčio iki iškrovimo pabaigos – ' + minTxt(amz) + ' (riba 90 min).</span></div>' +
-        pranestiMyg() + kitasReisas() + atsauktiMyg(),
+        '<span class="muted">Išplovę betonvežį pažymėkite ir spauskite „Išvykstu iš objekto“.</span>' +
+        '<label class="chk"><input type="checkbox" id="k-apsipl"' + (S.kokybe.apsiplovimas ? ' checked' : '') + '> Betonvežis išplautas objekte</label></div>' +
+        pranestiMyg() + kitasReisas(),
       f: geltonas('btn-isvyko', 'SPAUSKITE IŠVAŽIUODAMI', 'Išvykstu iš objekto')
     };
   };
@@ -347,7 +349,7 @@
         '<div class="card"><span class="kick">Išvykote iš objekto · ' + hm(o.isvyko_obj) + '</span><h1>Grįžtate į betono mazgą</h1>' +
         '<div class="rows">' + eilute('Mazgas', esc(R.mazgas.pavadinimas)) + eilute('Atstumas', o.distance + ' km') +
         eilute('Numatomas grįžimas', hm(o.isvyko_obj + R.kelione_min * 60000), 'strong') + '</div></div>' +
-        pranestiMyg() + kitasReisas() + atsauktiMyg(),
+        kitasReisas() + atsauktiMyg(),
       f: geltonas('btn-gryzo', 'SPAUSKITE GRĮŽĘ', 'Grįžau į mazgą')
     };
   };
@@ -367,11 +369,13 @@
         '<span class="muted c">Galima nuo ' + hm(rib[0]) + ' iki ' + hm(rib[1]) + '</span>' +
         '<div class="act2"><button type="button" id="ed-cancel">Atšaukti</button><button type="button" id="ed-save">Išsaugoti laiką</button></div></div>';
     } else {
-      h += '<div class="card"><span class="kick">Reisas ' + o.id + ' · ' + esc(R.ord_trans.cars) + '</span><h1>Patikrinkite laikus</h1>' +
-        '<span class="muted">Jei laikas netikslus, paspauskite jį ir pataisykite. Pasikrovimo ir išvykimo laikus įrašo betono mazgas.</span></div>';
+      var amz = mins(o.salytis, o.iskrovimo_pabaiga);
+      h += '<div class="card"><span class="kick">Iškrovimas baigtas · ' + hm(o.iskrovimo_pabaiga) + '</span><h1>Patikrinkite laikus</h1>' +
+        '<span class="muted">Laikas nuo W/C sąlyčio iki iškrovimo pabaigos – ' + minTxt(amz) + ' (riba 90 min). Netikslų laiką paspauskite ir pataisykite. Pasikrovimo ir išvykimo laikus įrašo betono mazgas.</span></div>';
     }
     h += '<div class="card"><div class="tl">';
     STATUSAI.forEach(function (s, i) {
+      if (i > idx('iskrovimo_pabaiga')) return;
       var v = o[s.f], n = '<span class="n">' + (i + 1) + '</span>';
       if (s.src === 'betonpro') {
         h += '<div class="it bp"><span>' + n + esc(s.t) + '</span><b>' + hm(v) + '</b>' + svg('<rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 018 0v4"/>') + '</div>';
@@ -381,11 +385,11 @@
           svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>') + '</button>';
       }
     });
-    h += '</div></div>' + (taisomas ? '' : kokybesBlokas() + pranesimuBlokas() + atsauktiMyg());
+    h += '</div></div>' + (taisomas ? '' : pranesimuBlokas() + atsauktiMyg());
     var n = Object.keys(S.taisymai).length;
     return {
       b: h,
-      f: '<button type="button" class="btn btn-y" id="btn-pateikti"' + (taisomas ? ' disabled' : '') + '><span><span class="s">PASKUTINIS ŽINGSNIS' + (n ? ' · PATAISYTA: ' + n : '') + '</span><span class="b">Pateikti pasirašyti</span></span><span class="arr" aria-hidden="true">→</span></button>'
+      f: (taisomas ? '' : kokybesPatikra()) + '<button type="button" class="btn btn-y" id="btn-pateikti"' + (taisomas ? ' disabled' : '') + '><span><span class="s">TVIRTINU LAIKUS IR KOKYBĘ' + (n ? ' · PATAISYTA: ' + n : '') + '</span><span class="b">Pateikti pasirašyti</span></span><span class="arr" aria-hidden="true">→</span></button>'
     };
   };
   /* ---------- Betono kokybė (BetonPro: bet_<pad>_ord_trans ql_* , vanduo, grazintas_betonas, apsiplovimas, quality_comment) ---------- */
@@ -431,13 +435,15 @@
       '<div class="fld"><label for="' + p + '-grazp">Priežastis</label><input id="' + p + '-grazp" data-kin="grazinto_betono_priezastis" value="' + esc(k.grazinto_betono_priezastis) + '" placeholder="pvz. klientas nepriėmė"></div>';
     return h;
   }
-  function kokybesBlokas() {
-    var k = S.kokybe;
-    var h = '<div class="card"><span class="kick">Betono kokybė</span>' +
-      '<div class="seg" role="group" aria-label="Pastabos apie betono kokybę"><button type="button" data-kyra="0" aria-pressed="' + !k.yra + '">Be pastabų</button><button type="button" data-kyra="1" aria-pressed="' + k.yra + '">Yra pastabų</button></div>';
-    if (k.yra) h += kokybesLaukai('k') + '<label class="sr" for="k-pastaba">Pastaba apie kokybę</label><textarea id="k-pastaba" data-kin="quality_comment" rows="2" placeholder="Pastaba apie kokybę (bus ataskaitoje)">' + esc(k.quality_comment) + '</textarea>';
-    h += '<label class="chk"><input type="checkbox" id="k-apsipl"' + (k.apsiplovimas ? ' checked' : '') + '> Betonvežis išplautas objekte</label></div>';
-    return h;
+  // Kokybės patikra prie „Pateikti pasirašyti“: privaloma pažymėti „Be pastabų“ arba „Yra pastabų“.
+  function kokybesPatikra() {
+    var k = S.kokybe, yra = k.yra && k.patvirtinta, buvo = S.pranesimai.length > 0;
+    var p = problemos();
+    return '<div class="kq' + (k.patvirtinta ? '' : ' need') + '" id="kq" role="group" aria-label="Betono kokybės patikra">' +
+      '<span class="kqh">' + svg('<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>') + '<b>Betono kokybė</b>' +
+      (yra && p.length ? '<span class="kqs">' + esc(p.join('; ')) + '</span>' : k.patvirtinta ? '' : '<span class="kqs">Pažymėkite prieš pateikdami</span>') + '</span>' +
+      '<span class="kqb"><button type="button" data-kq="0" aria-pressed="' + (k.patvirtinta && !k.yra) + '"' + (buvo ? ' disabled title="Pranešimas operatoriui jau išsiųstas"' : '') + '>Be pastabų</button>' +
+      '<button type="button" data-kq="1" aria-pressed="' + yra + '">Yra pastabų</button></span></div>';
   }
   function pranestiMyg() {
     var n = S.pranesimai.length;
@@ -446,12 +452,12 @@
   }
   function pranesimuBlokas() {
     var h = '<div class="card"><span class="kick">Pranešimai operatoriui</span>';
-    if (!S.pranesimai.length) h += '<span class="muted">Nesiųsta. Komentarą ar nuotrauką operatoriui galite nusiųsti dabar.</span>';
+    if (!S.pranesimai.length) return '';
     S.pranesimai.forEach(function (x) {
       h += '<div class="prn"><b>' + hm(x.kada) + ' · ' + esc(x.statusas) + '</b><span>' + esc(x.problemos.concat(x.komentaras ? ['„' + x.komentaras + '“'] : []).join('; ') || '—') + '</span>' +
         '<span class="muted">' + (x.nuotraukos ? x.nuotraukos + ' nuotr. · ' : '') + (x.busena === 'issiusta' ? 'išsiųsta automatiškai' : 'perduota el. pašto programėlei') + '</span></div>';
     });
-    return h + pranestiMyg() + '</div>';
+    return h + '</div>';
   }
   function dabartinisStatusas() { var p = paskutinisIvykes(); return p < 0 ? '—' : STATUSAI[p].t + ' ' + hm(S.ord_trans[STATUSAI[p].f]); }
   function lapasHtml() {
@@ -483,7 +489,7 @@
     return nuotraukos.map(function (n) { var b = atob(n.dataUrl.split(',')[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new File([a], n.name, { type: 'image/jpeg' }); });
   }
   function uzbaigtiPranesima(x, busena) {
-    x.busena = busena; S.pranesimai.push(x); S.kokybe.yra = true;
+    x.busena = busena; S.pranesimai.push(x); S.kokybe.yra = true; S.kokybe.patvirtinta = true;
     log('quality_comment', x.kada, 'pranešta operatoriui: ' + (x.problemos.concat(x.komentaras ? [x.komentaras] : []).join('; ')));
     S.juodrastis = ''; nuotraukos = []; lapas = false; lapoKlaida = ''; lapoSiuntimas = false; pastuKitaKarta = false; save(); render();
     toast(busena === 'issiusta' ? 'Pranešimas išsiųstas operatoriui.' : 'Pranešimas perduotas el. pašto programėlei – išsiųskite jį.', null, null, 5000);
@@ -513,7 +519,7 @@
       .catch(function (e) { lapoSiuntimas = false; lapoKlaida = 'Išsiųsti nepavyko (' + (navigator.onLine ? String(e.message || e).slice(0, 60) : 'nėra ryšio') + '). Paspauskite „Siųsti operatoriui“ dar kartą – bus atidarytas el. paštas.'; pastuKitaKarta = true; render(); });
   }
   function kokybesDuomenys() {
-    var k = S.kokybe, kom = [k.quality_comment].concat(k.kiekis ? [Q.kiekis] : [], k.kita ? [Q.kita] : []).filter(Boolean).join('; ');
+    var k = S.kokybe, kom = S.pranesimai.map(function (x) { return x.komentaras; }).concat(k.kiekis ? [Q.kiekis] : [], k.kita ? [Q.kita] : []).filter(Boolean).join('; ');
     return {
       ql_slankumas: k.yra ? k.ql_slankumas : 0, ql_vanduo: k.yra ? k.ql_vanduo : 1, ql_pump: k.yra ? k.ql_pump : 1,
       vanduo: k.yra && k.vanduo !== '' ? +k.vanduo || 0 : null,
@@ -552,22 +558,29 @@
     return [min, max];
   }
 
-  E.pateikta = function () {
-    var s = S.siuntimas || {}, kam = CFG.ataskaitaKam, h = juosta(), f = '';
-    if (s.busena === 'siunciama') h += '<div class="card"><span class="kick">Siunčiama</span><h1>Siunčiama ataskaita…</h1></div>';
-    else {
-      h += '<div class="ok">' + svg('<path d="M4 12.5l5 5L20 6.5"/>') + '<span><b>Pateikta pasirašyti ' + hm(S.pateikta) + '.</b>' +
-        (s.busena === 'issiusta' ? '<br>Ataskaita išsiųsta: ' + esc(kam) + '.' : '<br>Reiso laikai išsaugoti, ataskaita parengta.') + '</span></div>';
-      if (s.busena === 'klaida') h += '<div class="err">Ataskaitos išsiųsti automatiškai nepavyko' + (s.klaida ? ' (' + esc(s.klaida) + ')' : '') + '.</div>';
-      if (s.busena !== 'issiusta') f = '<a class="btn btn-k" href="' + mailto() + '">' + svg('<path d="M3 5h18v14H3z"/><path d="M3 6l9 7 9-7"/>') + 'Siųsti ataskaitą el. paštu</a>' +
-        (CFG.endpoint ? '<button type="button" class="btn btn-l" id="btn-retry">Bandyti siųsti automatiškai dar kartą</button>' : '');
-    }
-    h += '<div class="card pv"><span class="kick">Ataskaita</span><div class="prev">' + ataskaitaHtml() + '</div></div>' +
-      '<a class="btn btn-o" href="?">Kiti testiniai reisai</a>';
-    return { b: h, f: f };
+  // Ataskaitos siuntimo būsena (rodoma po pasirašymo).
+  function siuntimoBusena() {
+    var s = S.siuntimas || {}, h;
+    if (s.busena === 'siunciama') return '<div class="ok"><span><b>Pateikta pasirašyti ' + hm(S.pateikta) + '.</b><br>Siunčiama ataskaita…</span></div>';
+    h = '<div class="ok">' + svg('<path d="M4 12.5l5 5L20 6.5"/>') + '<span><b>Pateikta pasirašyti ' + hm(S.pateikta) + '.</b>' +
+      (s.busena === 'issiusta' ? '<br>Ataskaita išsiųsta: ' + esc(CFG.ataskaitaKam) + '.' : '<br>Laikai išsaugoti, ataskaita parengta.') + '</span></div>';
+    if (s.busena === 'klaida') h += '<div class="err">Ataskaitos išsiųsti automatiškai nepavyko' + (s.klaida ? ' (' + esc(s.klaida) + ')' : '') + '.</div>';
+    if (s.busena !== 'issiusta') h += '<a class="btn btn-k" href="' + mailto() + '">' + svg('<path d="M3 5h18v14H3z"/><path d="M3 6l9 7 9-7"/>') + 'Siųsti ataskaitą el. paštu</a>' +
+      (CFG.endpoint ? '<button type="button" class="btn btn-l" id="btn-retry">Bandyti siųsti automatiškai dar kartą</button>' : '');
+    return h;
+  }
+  E.baigta = function () {
+    var o = S.ord_trans, gal = arKitas() ? o.gryzo : o.isvyko_obj;
+    var h = juosta() + '<div class="card"><span class="kick">Reisas ' + o.id + ' · ' + esc(R.ord_trans.cars) + '</span><h1>Reisas baigtas</h1>' +
+      '<span class="muted">' + (arKitas() ? 'Grįžote į betono mazgą ' : 'Išvykote iš objekto ') + hm(gal) + '. Ačiū.</span></div>' +
+      siuntimoBusena() +
+      '<div class="card pv"><span class="kick">Ataskaita (pateikta ' + hm(S.pateikta) + ')</span><div class="prev">' + ataskaitaHtml() + '</div></div>' +
+      atsauktiMyg() + '<a class="btn btn-o" href="?">Kiti testiniai reisai</a>';
+    return { b: h, f: '' };
   };
 
-  /* ---------- Ataskaita ---------- */
+  // Klientui pasirašyti teikiami laikai – iki iškrovimo pabaigos (išvykimą ir grįžimą vairuotojas spaudžia vėliau).
+  function ATASK() { return STATUSAI.slice(0, idx('iskrovimo_pabaiga') + 1); }
   function rodikliai() {
     var o = S.ord_trans, amzius = mins(o.salytis, o.iskrovimo_pabaiga);
     return {
@@ -584,7 +597,7 @@
   function ataskaitaDuomenys() {
     var o = S.ord_trans;
     return {
-      versija: 'vairuotojo-forma-test-2', client_uuid: S.client_uuid, pateikta: sqlDt(S.pateikta),
+      versija: 'vairuotojo-forma-test-3', client_uuid: S.client_uuid, pateikta: sqlDt(S.pateikta),
       ord_trans: {
         id: o.id, o_id: o.o_id, status: 3, salytis: sqlDt(o.salytis), pakrovimas: sqlDt(o.pakrovimas), isvyko: sqlDt(o.isvyko), atvyko: sqlDt(o.atvyko),
         iskrovimo_pradzia: sqlDt(o.iskrovimo_pradzia), iskrovimo_pabaiga: sqlDt(o.iskrovimo_pabaiga), isvyko_obj: sqlDt(o.isvyko_obj), gryzo: sqlDt(o.gryzo),
@@ -622,7 +635,7 @@
       '<tr><td style="padding:8px 22px 4px"><div style="' + F + 'font-size:15px;font-weight:bold;color:#15171A">Pristatymo laikai</div></td></tr>' +
       '<tr><td style="padding:4px 22px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">' +
       '<tr><th ' + th + '>Nr.</th><th ' + th + '>Statusas</th><th ' + th + '>Laikas</th><th ' + th + '>Šaltinis</th></tr>';
-    STATUSAI.forEach(function (s, i) {
+    ATASK().forEach(function (s, i) {
       var v = o[s.f], tais = S.taisymai[s.f], g = S.vieta.taskai[s.f];
       var src = s.src === 'betonpro' ? 'Betono mazgas' : (v ? 'Vairuotojas' : '—');
       if (tais) src += '<br><i style="color:#8A6D00">pataisyta, buvo ' + hm(tais.buvo) + '</i>';
@@ -639,7 +652,6 @@
       kv('Iškrovimo trukmė', minTxt(r.iskrovimas_min)) +
       kv('Laikas nuo W/C sąlyčio iki iškrovimo pabaigos', minTxt(r.laikas_nuo_wc_salycio_iki_iskrovimo_pabaigos_min) + (r.riba_90_min_islaikyta == null ? '' : r.riba_90_min_islaikyta ? ' · <b style="color:#2C7A5B">neviršyta 90 min riba</b>' : ' · <b style="color:#B3261E">viršyta 90 min riba</b>')) +
       kv('Atstumas mazgas–objektas', o.distance + ' km') +
-      kv('Reiso trukmė', minTxt(r.reiso_ciklas_min) + (arKitas() ? ' (iki grįžimo į mazgą)' : ' (iki išvykimo iš objekto)')) +
       '</table></td></tr>' +
       '<tr><td style="padding:8px 22px 4px"><div style="' + F + 'font-size:15px;font-weight:bold;color:#15171A">Betono kokybė</div></td></tr>' +
       '<tr><td style="padding:4px 22px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">' +
@@ -651,21 +663,14 @@
     return h;
   }
   function kokybesEilutes() {
-    var k = S.kokybe, e = [];
-    if (!k.yra) e.push(['Vairuotojo pastabos', 'Be pastabų']);
-    else {
-      var p = problemos();
-      e.push(['Pastebėta', p.length ? p.join('; ') : '—']);
-      if (k.quality_comment) e.push(['Pastaba', k.quality_comment]);
-    }
-    e.push(['Betonvežis išplautas objekte', k.apsiplovimas ? 'Taip' : 'Ne']);
-    return e;
+    var p = problemos();
+    return [S.kokybe.yra && p.length ? ['Vairuotojo pastabos', p.join('; ')] : ['Vairuotojo pastabos', 'Be pastabų']];
   }
   function ataskaitaTekstas() {
     var o = S.ord_trans, r = rodikliai();
     var t = 'BETONO PRISTATYMO ATASKAITA – BetonPro HUB\n\n' + R.ord.adresas + '\n' + dt(o.pakrovimas) + ' · Užsakymas ' + R.ord.nr + ' · Reisas ' + o.id + '\n\n' +
       'Klientas: ' + R.ord.gavejas + '\nBetonas: ' + R.ord_trans.kiekis + ' m³ ' + R.ord_trans.product + '\nBetonvežis: ' + R.ord_trans.cars + '\nVairuotojas: ' + o.driver + ', ' + o.driver_tel + '\nVežėjas: ' + o.transp + '\n\nPRISTATYMO LAIKAI\n';
-    STATUSAI.forEach(function (s, i) {
+    ATASK().forEach(function (s, i) {
       var tais = S.taisymai[s.f];
       t += (i + 1) + '. ' + s.t + ': ' + hm(o[s.f]) + ' (' + (s.src === 'betonpro' ? 'betono mazgas' : 'vairuotojas') + (tais ? ', pataisyta, buvo ' + hm(tais.buvo) : '') + ')\n';
     });
@@ -692,12 +697,12 @@
   /* ---------- Atvaizdavimas ---------- */
   var tick = null;
   function render() {
-    var ekr = !R ? 'pasirinkimas' : (S.pateikta ? 'pateikta' : S.ekranas);
+    var ekr = !R ? 'pasirinkimas' : ekranasPagalBusena();
     var e = E[ekr]();
     $main.innerHTML = '<section class="scr" data-ekranas="' + ekr + '">' + e.b +
       (R ? '<div class="reset"><button type="button" id="btn-reset">Testas: pradėti šį reisą iš naujo</button></div>' : '') + '</section>';
     $foot.innerHTML = e.f; $foot.hidden = !e.f;
-    if (lapas && !(R && S.ord_trans.atvyko && !S.pateikta)) lapas = false;
+    if (lapas && !(R && S.ord_trans.atvyko && !S.ord_trans.isvyko_obj)) lapas = false;
     $lapas.innerHTML = lapas ? lapasHtml() : '';
     document.body.style.overflow = lapas ? 'hidden' : '';
     bind();
@@ -754,9 +759,17 @@
     });
     on('btn-pateikti', vienas(function () {
       if (taisomas) return;
+      if (!S.kokybe.patvirtinta) { toast('Pažymėkite betono kokybę: „Be pastabų“ arba „Yra pastabų“.'); var q = document.getElementById('kq'); if (q) { q.classList.add('pulse'); q.querySelector('button:not([disabled])').focus(); } return; }
       S.pateikta = now(); log('pateikta', S.pateikta, 'pateikta pasirašyti'); save(); toastHide(); render(); window.scrollTo(0, 0); siusti();
     }));
     on('btn-retry', siusti);
+    each('[data-kq]', function (b) {
+      b.addEventListener('click', function () {
+        if (b.getAttribute('data-kq') === '0') { S.kokybe.yra = false; S.kokybe.patvirtinta = true; save(); render(); return; }
+        if (problemos().length || S.pranesimai.length) { S.kokybe.yra = true; S.kokybe.patvirtinta = true; save(); render(); }
+        lapas = true; lapoKlaida = ''; render(); var x = document.getElementById('lapas-x'); if (x) x.focus();
+      });
+    });
     each('[data-kyra]', function (b) { b.addEventListener('click', function () { S.kokybe.yra = b.getAttribute('data-kyra') === '1'; save(); render(); }); });
     each('[data-kok]', function (b) {
       b.addEventListener('click', function () {

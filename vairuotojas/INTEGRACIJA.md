@@ -13,9 +13,9 @@ Visi laukų pavadinimai sutampa su BetonPro DB (atkurta schema, 2026-11-03). Tik
 | 3 | Atvykimas pas klientą | `atvyko` | vairuotojas | „Atvykau į objektą“ |
 | 4 | Iškrovimo pradžia | `iskrovimo_pradzia` | vairuotojas | „Pradėjau iškrauti“ |
 | 5 | Iškrovimo pabaiga | `iskrovimo_pabaiga` | vairuotojas | „Baigiau iškrauti“ |
-| 6 | Išvykimas iš kliento | `isvyko_obj` | vairuotojas | „Išvykstu iš objekto“ |
+| 6 | Išvykimas iš kliento | `isvyko_obj` | vairuotojas | „Išvykstu iš objekto“ – po pasirašymo; kartu `apsiplovimas` |
 | 7 | Grįžimas į betono mazgą | `gryzo` | vairuotojas | „Grįžau į mazgą“ – **tik jei betonvežiui priskirtas kitas reisas**. Jei kito reiso nėra, statusas nerodomas, pristatymas baigiamas išvykus iš objekto (`gryzo` = NULL) |
-| 8 | Pateikimas pasirašyti | – | vairuotojas | „Pateikti pasirašyti“ → SMS klientui pasirašyti važtaraštį (esama logika) |
+| – | Pateikimas pasirašyti | – | vairuotojas | **iškart po iškrovimo pabaigos, dar objekte**: vairuotojas patikrina laikus 1–5, privalomai pažymi betono kokybę („Be pastabų“ / „Yra pastabų“) ir spaudžia „Pateikti pasirašyti“ → SMS klientui pasirašyti važtaraštį (esama logika), ataskaita el. paštu |
 
 ### 1a. `ord_trans.status` reikšmės (iš `vairuotojas.php` → `updateOrder`)
 
@@ -29,7 +29,9 @@ Visi laukų pavadinimai sutampa su BetonPro DB (atkurta schema, 2026-11-03). Tik
 | `isvyko_obj` | 8 |
 | `gryzo` / pristatymas baigtas | 3 |
 
-Dabartinė SMS forma (`transp.php` → `valdymas`) `iskrovimo_pabaiga` metu iš karto nustato `status = 3` ir apskaičiuoja `gryzo = pabaiga + kelionės laikas`. Siūloma naudoti tas pačias reikšmes kaip vairuotojo programėlėje: 6 → 7 → 8 → 3; jei kito reiso nėra, `status = 3` nustatomas po `isvyko_obj` (arba „Pateikti pasirašyti“). Laikai DB saugomi `time` (H:i) formatu, kiekvienas pakeitimas – į istoriją su žyma „(SMS Tracker)“.
+Dabartinė SMS forma (`transp.php` → `valdymas`) `iskrovimo_pabaiga` metu iš karto nustato `status = 3` ir apskaičiuoja `gryzo = pabaiga + kelionės laikas`. Forma naudoja tas pačias reikšmes kaip vairuotojo programėlė: 6 → 7 → 8 → 3; jei kito reiso nėra, `status = 3` nustatomas po `isvyko_obj`.
+
+Ekranų eiga: kelyje → laukia → iškrauna → **pateikimas pasirašyti (laikai + kokybė)** → išvykimas iš objekto → grįžimas (tik su kitu reisu) → baigta. Klientui teikiami ir ataskaitoje rodomi tik laikai iki iškrovimo pabaigos; `isvyko_obj` ir `gryzo` – vidiniai (vežėjo apskaitai). Pasirašius laikų 3–5 atšaukti nebegalima, tik taisyti per operatorių. Laikai DB saugomi `time` (H:i) formatu, kiekvienas pakeitimas – į istoriją su žyma „(SMS Tracker)“.
 
 Kiti laukai, kuriuos forma keičia: `distance` (km mazgas–objektas, **viena kryptis**, ne ×2), `driver`, `driver_tel`, `transp` (vairuotojo patvirtinti duomenys), `driver_accepted = 1`, `phone_confirmed = 1`.
 
@@ -97,7 +99,7 @@ Pasirinkimai ir tekstai paimti iš BetonPro vairuotojo modulio (`vairuotojas.php
 
 ## 7. Pranešimas operatoriui (bet kuriame ekrane po atvykimo)
 
-Mygtukas „Pranešti operatoriui apie kokybę“ rodomas nuo `atvyko` iki pateikimo. Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
+Mygtukas „Pranešti operatoriui apie kokybę“ (trikampio ženklas) rodomas nuo `atvyko` iki `isvyko_obj`; pasirašymo ekrane – kokybės patikra prie „Pateikti pasirašyti“ („Yra pastabų“ atidaro tą patį langą). Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
 
 - HUB'e – esamas `push_it($ccar, "message", ...)` su tekstu „Pranešimas iš vairuotojo apie mišinio kokybės neatitikimą objekte. Auto : {cars}, važtaraščio ID - {id}.“ + el. laiškas `uzsakymai@c3betonas.lt` su nuotraukomis;
 - teste – Apps Script veiksmas `operatoriaus_pranesimas` (gavėjas `config.js` → `operatoriui`, testui `pbraduls@gmail.com`); kol `endpoint` tuščias – telefono „Bendrinti“ (su nuotraukomis) arba `mailto:`.

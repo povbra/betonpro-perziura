@@ -15,7 +15,7 @@ Visi laukų pavadinimai sutampa su BetonPro DB (atkurta schema, 2026-11-03). Tik
 | 5 | Iškrovimo pabaiga | `iskrovimo_pabaiga` | vairuotojas | „Baigiau iškrauti“ |
 | 6 | Išvykimas iš kliento | `isvyko_obj` | vairuotojas | „Išvykstu iš objekto“ – po pasirašymo; kartu `apsiplovimas` |
 | 7 | Grįžimas į betono mazgą | `gryzo` | vairuotojas | „Grįžau į mazgą“ – **tik jei betonvežiui priskirtas kitas reisas**. Jei kito reiso nėra, statusas nerodomas, pristatymas baigiamas išvykus iš objekto (`gryzo` = NULL) |
-| – | Pateikimas pasirašyti | – | vairuotojas | **iškart po iškrovimo pabaigos, dar objekte**: vairuotojas patikrina laikus 1–5, privalomai pažymi betono kokybę („Be pastabų“ / „Yra pastabų“) ir spaudžia „Pateikti pasirašyti“ → SMS klientui pasirašyti važtaraštį (esama logika), ataskaita el. paštu |
+| – | Pateikimas pasirašyti | – | vairuotojas | **iškart po iškrovimo pabaigos, dar objekte**: vairuotojas patikrina laikus 1–5 ir spaudžia „Pateikti pasirašyti“ → SMS klientui pasirašyti važtaraštį (esama logika), ataskaita el. paštu |
 
 ### 1a. `ord_trans.status` reikšmės (iš `vairuotojas.php` → `updateOrder`)
 
@@ -99,9 +99,18 @@ Pasirinkimai ir tekstai paimti iš BetonPro vairuotojo modulio (`vairuotojas.php
 
 ## 7. Pranešimas operatoriui (bet kuriame ekrane po atvykimo)
 
-Mygtukas „Pranešti operatoriui apie kokybę“ (trikampio ženklas) rodomas nuo `atvyko` iki `isvyko_obj`; pasirašymo ekrane – kokybės patikra prie „Pateikti pasirašyti“ („Yra pastabų“ atidaro tą patį langą). Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
+Tekstinė nuoroda su trikampio ženklu „Pranešti apie kokybę“ – virš statuso mygtuko, dešinėje, nuo `atvyko` iki `isvyko_obj`. Tai tik galimybė: kokybės tvirtinti nereikia, nepranešus ataskaitoje rašoma „Be pastabų“. Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
 
 - HUB'e – esamas `push_it($ccar, "message", ...)` su tekstu „Pranešimas iš vairuotojo apie mišinio kokybės neatitikimą objekte. Auto : {cars}, važtaraščio ID - {id}.“ + el. laiškas `uzsakymai@c3betonas.lt` su nuotraukomis;
 - teste – Apps Script veiksmas `operatoriaus_pranesimas` (gavėjas `config.js` → `operatoriui`, testui `pbraduls@gmail.com`); kol `endpoint` tuščias – telefono „Bendrinti“ (su nuotraukomis) arba `mailto:`.
 
 Siūlomas API: `POST ...&act=reisas_pranesimas` `{ token, ql_slankumas, ql_vanduo, ql_pump, vanduo, grazintas_betonas, grazinto_betono_priezastis, komentaras, nuotraukos[] }`. Nuotraukos – prie užsakymo failų (`ord_files` ar pan.). Pranešimai klientui nesiunčiami ir į kliento ataskaitą nepatenka (ataskaitoje – tik kokybės santrauka).
+
+
+## 8. Gedimas („Sugedau“)
+
+Nuoroda su trikampio ženklu „Sugedau“ – virš statuso mygtuko, kairėje, visą reisą (nuo reiso priėmimo iki pabaigos). Atidaro langą su neprivalomu komentaru → „Pranešti dispečeriui“. Statusų žymėjimas nestabdomas. Kol gedimas aktyvus, po statusų juosta rodoma raudona eilutė su mygtuku „Gedimas pašalintas“.
+
+- HUB'e – kaip vairuotojo programėlėje: `tracker_set_hazard_status` → `automotive_cars.gedimas = 1` (pašalinus `0`) ir Pusher įvykis `emergency` dispečeriui; galima pildyti `ord_trans.gedimas_start` (programėlėje užkomentuota).
+- Pranešime: auto, reisas, vairuotojas, betonas ir objektas, laikas nuo W/C sąlyčio, dabartinis statusas, vieta (jei įjungta), komentaras.
+- Teste – Apps Script veiksmas `gedimas` arba `mailto:` (`config.js` → `operatoriui`). JSON lauke `gedimai` – visi reiso gedimai su pradžia ir pabaiga.

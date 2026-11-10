@@ -115,8 +115,9 @@
       },
       planuota_objekte: t - 2 * 60000 + r.iki_objekto_min * 60000,
       taisymai: {}, istorija: [], vieta: { ijungta: false, taskai: {} },
-      kokybe: { yra: false, ql_slankumas: 0, ql_vanduo: 1, ql_pump: 1, vanduo: '', grazintas_betonas: '', grazinto_betono_priezastis: '', kiekis: false, kita: false, patvirtinta: false, apsiplovimas: false },
+      kokybe: { yra: false, ql_slankumas: 0, ql_vanduo: 1, ql_pump: 1, vanduo: '', grazintas_betonas: '', grazinto_betono_priezastis: '', kiekis: false, kita: false, apsiplovimas: false },
       pranesimai: [], juodrastis: '',
+      gedimas: null, gedimai: [], gedimoKom: '',
       pateikta: null, siuntimas: null
     };
   }
@@ -313,7 +314,7 @@
         eilute('Objektas', esc(R.ord.adresas)) +
         eilute('Kontaktas', esc(R.ord.kontaktas) + '<br><a href="tel:' + tel(R.ord.tel) + '" class="mono">' + tel(R.ord.tel) + '</a>') +
         eilute('Betonas', R.ord_trans.kiekis + ' m³ ' + esc(R.ord_trans.product)) +
-        eilute('Iki 90 min ribos', Math.max(0, liko) + ' min', 'strong') + '</div></div>' + pranestiMyg() + atsauktiMyg(),
+        eilute('Iki 90 min ribos', Math.max(0, liko) + ' min', 'strong') + '</div></div>' + atsauktiMyg(),
       f: geltonas('btn-pradzia', 'SPAUSKITE PRADĖJĘ PILTI', 'Pradėjau iškrauti')
     };
   };
@@ -325,7 +326,7 @@
     return {
       b: juosta() +
         '<div class="card"><span class="kick">Iškraunate nuo ' + hm(o.iskrovimo_pradzia) + '</span>' + laikrodis(centras) + '</div>' +
-        pranestiMyg() + atsauktiMyg(),
+        atsauktiMyg(),
       f: geltonas('btn-pabaiga', 'SPAUSKITE BAIGĘ PILTI', 'Baigiau iškrauti')
     };
   };
@@ -337,7 +338,7 @@
         '<div class="card"><span class="kick">Iškrovimas baigtas · ' + hm(o.iskrovimo_pabaiga) + '</span><h1>Ačiū, betonas pristatytas</h1>' +
         '<span class="muted">Išplovę betonvežį pažymėkite ir spauskite „Išvykstu iš objekto“.</span>' +
         '<label class="chk"><input type="checkbox" id="k-apsipl"' + (S.kokybe.apsiplovimas ? ' checked' : '') + '> Betonvežis išplautas objekte</label></div>' +
-        pranestiMyg() + kitasReisas(),
+        kitasReisas(),
       f: geltonas('btn-isvyko', 'SPAUSKITE IŠVAŽIUODAMI', 'Išvykstu iš objekto')
     };
   };
@@ -389,7 +390,7 @@
     var n = Object.keys(S.taisymai).length;
     return {
       b: h,
-      f: (taisomas ? '' : kokybesPatikra()) + '<button type="button" class="btn btn-y" id="btn-pateikti"' + (taisomas ? ' disabled' : '') + '><span><span class="s">TVIRTINU LAIKUS IR KOKYBĘ' + (n ? ' · PATAISYTA: ' + n : '') + '</span><span class="b">Pateikti pasirašyti</span></span><span class="arr" aria-hidden="true">→</span></button>'
+      f: '<button type="button" class="btn btn-y" id="btn-pateikti"' + (taisomas ? ' disabled' : '') + '><span><span class="s">TVIRTINU LAIKUS' + (n ? ' · PATAISYTA: ' + n : '') + '</span><span class="b">Pateikti pasirašyti</span></span><span class="arr" aria-hidden="true">→</span></button>'
     };
   };
   /* ---------- Betono kokybė (BetonPro: bet_<pad>_ord_trans ql_* , vanduo, grazintas_betonas, apsiplovimas, quality_comment) ---------- */
@@ -435,20 +436,59 @@
       '<div class="fld"><label for="' + p + '-grazp">Priežastis</label><input id="' + p + '-grazp" data-kin="grazinto_betono_priezastis" value="' + esc(k.grazinto_betono_priezastis) + '" placeholder="pvz. klientas nepriėmė"></div>';
     return h;
   }
-  // Kokybės patikra prie „Pateikti pasirašyti“: privaloma pažymėti „Be pastabų“ arba „Yra pastabų“.
-  function kokybesPatikra() {
-    var k = S.kokybe, yra = k.yra && k.patvirtinta, buvo = S.pranesimai.length > 0;
-    var p = problemos();
-    return '<div class="kq' + (k.patvirtinta ? '' : ' need') + '" id="kq" role="group" aria-label="Betono kokybės patikra">' +
-      '<span class="kqh">' + svg('<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>') + '<b>Betono kokybė</b>' +
-      (yra && p.length ? '<span class="kqs">' + esc(p.join('; ')) + '</span>' : k.patvirtinta ? '' : '<span class="kqs">Pažymėkite prieš pateikdami</span>') + '</span>' +
-      '<span class="kqb"><button type="button" data-kq="0" aria-pressed="' + (k.patvirtinta && !k.yra) + '"' + (buvo ? ' disabled title="Pranešimas operatoriui jau išsiųstas"' : '') + '>Be pastabų</button>' +
-      '<button type="button" data-kq="1" aria-pressed="' + yra + '">Yra pastabų</button></span></div>';
-  }
-  function pranestiMyg() {
+  var TRIK = '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>';
+  // Nuorodos virš statuso mygtuko: kairėje „Sugedau“ (visą reisą), dešinėje kokybė (nuo atvykimo iki išvykimo iš objekto).
+  function arObjekte() { return !!(S.ord_trans.atvyko && !S.ord_trans.isvyko_obj); }
+  function arReise(ekr) { return ekr !== 'patvirtinimas' && ekr !== 'baigta' && ekr !== 'pasirinkimas'; }
+  function nuorodos(ekr) {
+    if (!R || !arReise(ekr) || taisomas) return '';
     var n = S.pranesimai.length;
-    return '<button type="button" class="btn btn-w" id="btn-pranesti">' + svg('<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>') +
-      '<span>Pranešti operatoriui apie kokybę' + (n ? ' <small>· išsiųsta ' + n + '</small>' : '') + '</span></button>';
+    return '<div class="plinks">' +
+      (S.gedimas ? '<span></span>' : '<button type="button" class="pl" id="lnk-gedimas">' + svg(TRIK) + 'Sugedau</button>') +
+      (arObjekte() ? '<button type="button" class="pl" id="lnk-kokybe">' + svg(TRIK) + 'Pranešti apie kokybę' + (n ? ' (' + n + ')' : '') + '</button>' : '') + '</div>';
+  }
+  function gedimoJuosta() {
+    if (!S.gedimas) return '';
+    return '<div class="gedim" role="status">' + svg(TRIK) + '<span><b>Pranešta apie gedimą ' + hm(S.gedimas.pradzia) + '</b><br>' +
+      (S.gedimas.busena === 'issiusta' ? 'Dispečeris informuotas.' : 'Pranešimas perduotas el. pašto programėlei.') + '</span>' +
+      '<button type="button" id="btn-gedimas-pab">Gedimas pašalintas</button></div>';
+  }
+  function gedimoLapas() {
+    return '<div class="lapas" id="lapas-fon"><div role="dialog" aria-modal="true" aria-labelledby="lapas-h">' +
+      '<div class="hd"><span><span class="kick">Reisas ' + S.ord_trans.id + ' · ' + esc(R.ord_trans.cars) + '</span><h1 id="lapas-h">Betonvežio gedimas</h1></span>' +
+      '<button type="button" class="x" id="lapas-x" aria-label="Uždaryti">×</button></div>' +
+      '<span class="muted">Dispečeris gaus pranešimą iš karto' + (vieta && S.vieta.ijungta ? ' su jūsų vieta' : '') + '. Statusus galėsite žymėti toliau.</span>' +
+      '<label class="sr" for="g-kom">Kas atsitiko</label><textarea id="g-kom" rows="3" placeholder="Kas atsitiko? (neprivaloma) Pvz. neveikia būgnas, nuleista padanga">' + esc(S.gedimoKom) + '</textarea>' +
+      (lapoKlaida ? '<div class="err" role="alert">' + esc(lapoKlaida) + '</div>' : '') +
+      '<div class="act"><button type="button" class="btn btn-o" id="lapas-cancel">Atšaukti</button><button type="button" class="btn btn-r" id="gedimas-send"' + (lapoSiuntimas ? ' disabled' : '') + '>' +
+      (lapoSiuntimas ? 'Siunčiama…' : 'Pranešti dispečeriui') + '</button></div></div></div>';
+  }
+  function gedimoTekstas(g, pabaiga) {
+    var o = S.ord_trans, v = g.vieta;
+    return (pabaiga ? 'Vairuotojas pažymėjo, kad betonvežio gedimas pašalintas.' : 'Vairuotojas pranešė apie betonvežio gedimą.') + ' Auto : ' + R.ord_trans.cars + ', važtaraščio ID - ' + o.id + '.\n\n' +
+      'Vairuotojas: ' + o.driver + ', ' + o.driver_tel + '\nBetonas: ' + R.ord_trans.kiekis + ' m³ ' + R.ord_trans.product + ' → ' + R.ord.adresas +
+      '\nNuo W/C sąlyčio: ' + Math.round((now() - o.salytis) / 60000) + ' min\nStatusas: ' + g.statusas +
+      '\nGedimas nuo: ' + hm(g.pradzia) + (pabaiga ? '\nPašalintas: ' + hm(g.pabaiga) : '') +
+      (v ? '\nVieta: https://www.google.com/maps?q=' + v.lat + ',' + v.lon : '') + (g.komentaras ? '\n\nKomentaras:\n' + g.komentaras : '');
+  }
+  // Gedimas: BetonPro – automotive_cars.gedimas (tracker_set_hazard_status) + Pusher 'emergency'.
+  function siustiGedima(pabaiga) {
+    var g = pabaiga ? S.gedimas : { pradzia: now(), statusas: dabartinisStatusas(), komentaras: (S.gedimoKom || '').trim(), vieta: vieta && S.vieta.ijungta ? vieta : null };
+    if (pabaiga) g.pabaiga = now();
+    var tema = (pabaiga ? 'Gedimas pašalintas' : 'GEDIMAS') + ' · ' + R.ord_trans.cars + ' · reisas ' + S.ord_trans.id, tekstas = gedimoTekstas(g, pabaiga);
+    function baigti(busena) {
+      if (pabaiga) { S.gedimai.push(S.gedimas); S.gedimas = null; log('gedimas', g.pabaiga, 'gedimas pašalintas'); toast('Pažymėta: gedimas pašalintas.'); }
+      else { g.busena = busena; S.gedimas = g; S.gedimoKom = ''; log('gedimas', g.pradzia, 'pranešta apie gedimą' + (g.komentaras ? ': ' + g.komentaras : '')); toast(busena === 'issiusta' ? 'Dispečeris informuotas apie gedimą.' : 'Pranešimas perduotas el. pašto programėlei – išsiųskite jį.', null, null, 5000); }
+      lapas = false; lapoKlaida = ''; lapoSiuntimas = false; save(); render();
+    }
+    function pastu() { location.href = 'mailto:' + (CFG.operatoriui || '') + '?subject=' + encodeURIComponent(tema) + '&body=' + encodeURIComponent(tekstas); baigti('pastas'); }
+    if (!CFG.endpoint) { pastu(); return; }
+    if (!pabaiga) { lapoSiuntimas = true; render(); }
+    fetch(CFG.endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'gedimas', raktas: CFG.raktas, kam: CFG.operatoriui, tema: tema, tekstas: tekstas, duomenys: { ord_trans_id: S.ord_trans.id, cars: R.ord_trans.cars, gedimas: pabaiga ? 0 : 1, irasas: g } }) })
+      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function (j) { if (!j || !j.ok) throw new Error((j && j.error) || 'nepavyko'); baigti('issiusta'); })
+      .catch(function () { if (pabaiga) { baigti('pastas'); return; } lapoSiuntimas = false; lapoKlaida = 'Išsiųsti nepavyko. Paskambinkite dispečeriui arba bandykite dar kartą.'; render(); });
   }
   function pranesimuBlokas() {
     var h = '<div class="card"><span class="kick">Pranešimai operatoriui</span>';
@@ -489,7 +529,7 @@
     return nuotraukos.map(function (n) { var b = atob(n.dataUrl.split(',')[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new File([a], n.name, { type: 'image/jpeg' }); });
   }
   function uzbaigtiPranesima(x, busena) {
-    x.busena = busena; S.pranesimai.push(x); S.kokybe.yra = true; S.kokybe.patvirtinta = true;
+    x.busena = busena; S.pranesimai.push(x); S.kokybe.yra = true;
     log('quality_comment', x.kada, 'pranešta operatoriui: ' + (x.problemos.concat(x.komentaras ? [x.komentaras] : []).join('; ')));
     S.juodrastis = ''; nuotraukos = []; lapas = false; lapoKlaida = ''; lapoSiuntimas = false; pastuKitaKarta = false; save(); render();
     toast(busena === 'issiusta' ? 'Pranešimas išsiųstas operatoriui.' : 'Pranešimas perduotas el. pašto programėlei – išsiųskite jį.', null, null, 5000);
@@ -610,6 +650,7 @@
       // bet_<pad>_ord_trans kokybės laukai (žr. INTEGRACIJA.md 5 sk.)
       kokybe: kokybesDuomenys(),
       pranesimai_operatoriui: S.pranesimai,
+      gedimai: S.gedimai.concat(S.gedimas ? [S.gedimas] : []),
       istorija: S.istorija.map(function (x) { return { kada: sqlDt(x.kada), laukas: x.laukas, reiksme: x.reiksme, veiksmas: x.veiksmas, saltinis: 'SMS Tracker' }; })
     };
   }
@@ -699,11 +740,13 @@
   function render() {
     var ekr = !R ? 'pasirinkimas' : ekranasPagalBusena();
     var e = E[ekr]();
+    if (R && S.gedimas && arReise(ekr)) e.b = e.b.replace('</ol>', '</ol>' + gedimoJuosta());
     $main.innerHTML = '<section class="scr" data-ekranas="' + ekr + '">' + e.b +
       (R ? '<div class="reset"><button type="button" id="btn-reset">Testas: pradėti šį reisą iš naujo</button></div>' : '') + '</section>';
-    $foot.innerHTML = e.f; $foot.hidden = !e.f;
-    if (lapas && !(R && S.ord_trans.atvyko && !S.ord_trans.isvyko_obj)) lapas = false;
-    $lapas.innerHTML = lapas ? lapasHtml() : '';
+    $foot.innerHTML = e.f ? nuorodos(ekr) + e.f : ''; $foot.hidden = !e.f;
+    if (lapas === 'kokybe' && !(R && arObjekte())) lapas = false;
+    if (lapas === 'gedimas' && !(R && arReise(ekr))) lapas = false;
+    $lapas.innerHTML = lapas === 'kokybe' ? lapasHtml() : lapas === 'gedimas' ? gedimoLapas() : '';
     document.body.style.overflow = lapas ? 'hidden' : '';
     bind();
     clearInterval(tick);
@@ -759,17 +802,9 @@
     });
     on('btn-pateikti', vienas(function () {
       if (taisomas) return;
-      if (!S.kokybe.patvirtinta) { toast('Pažymėkite betono kokybę: „Be pastabų“ arba „Yra pastabų“.'); var q = document.getElementById('kq'); if (q) { q.classList.add('pulse'); q.querySelector('button:not([disabled])').focus(); } return; }
       S.pateikta = now(); log('pateikta', S.pateikta, 'pateikta pasirašyti'); save(); toastHide(); render(); window.scrollTo(0, 0); siusti();
     }));
     on('btn-retry', siusti);
-    each('[data-kq]', function (b) {
-      b.addEventListener('click', function () {
-        if (b.getAttribute('data-kq') === '0') { S.kokybe.yra = false; S.kokybe.patvirtinta = true; save(); render(); return; }
-        if (problemos().length || S.pranesimai.length) { S.kokybe.yra = true; S.kokybe.patvirtinta = true; save(); render(); }
-        lapas = true; lapoKlaida = ''; render(); var x = document.getElementById('lapas-x'); if (x) x.focus();
-      });
-    });
     each('[data-kyra]', function (b) { b.addEventListener('click', function () { S.kokybe.yra = b.getAttribute('data-kyra') === '1'; save(); render(); }); });
     each('[data-kok]', function (b) {
       b.addEventListener('click', function () {
@@ -782,8 +817,12 @@
     each('[data-kin]', function (el) { el.addEventListener('input', function () { S.kokybe[el.getAttribute('data-kin')] = el.value; save(); }); });
     var ap = document.getElementById('k-apsipl'); if (ap) ap.addEventListener('change', function () { S.kokybe.apsiplovimas = ap.checked; save(); });
     // Pranešimas operatoriui (bet kuriame ekrane po atvykimo)
-    on('btn-pranesti', function () { lapas = true; lapoKlaida = ''; render(); var x = document.getElementById('lapas-x'); if (x) x.focus(); });
-    function uzdaryti() { lapas = false; lapoKlaida = ''; lapoSiuntimas = false; render(); var b = document.getElementById('btn-pranesti'); if (b) b.focus(); }
+    function atidaryti(kas) { return function () { lapas = kas; lapoKlaida = ''; render(); var x = document.getElementById('lapas-x'); if (x) x.focus(); }; }
+    on('lnk-kokybe', atidaryti('kokybe')); on('lnk-gedimas', atidaryti('gedimas'));
+    function uzdaryti() { var kas = lapas; lapas = false; lapoKlaida = ''; lapoSiuntimas = false; render(); var b = document.getElementById('lnk-' + kas); if (b) b.focus(); }
+    on('gedimas-send', function () { if (!lapoSiuntimas) siustiGedima(false); });
+    on('btn-gedimas-pab', function () { siustiGedima(true); });
+    var gk = document.getElementById('g-kom'); if (gk) gk.addEventListener('input', function () { S.gedimoKom = gk.value; save(); });
     on('lapas-x', uzdaryti); on('lapas-cancel', uzdaryti);
     var fon = document.getElementById('lapas-fon'); if (fon) fon.addEventListener('click', function (e) { if (e.target === fon) uzdaryti(); });
     on('lapas-send', function () { if (!lapoSiuntimas) siustiPranesima(); });

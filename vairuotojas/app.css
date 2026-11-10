@@ -175,12 +175,14 @@ h1 { margin: 0; font-family: var(--sriftas-display); font-weight: 700; font-size
 .chk { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: .875rem; font-weight: 600; }
 .chk input { width: 22px; height: 22px; accent-color: var(--bp-juoda); flex: none; }
 textarea { width: 100%; min-height: 64px; border: 2px solid var(--bp-juoda); background: #fff; padding: 8px; font: 500 16px/1.35 var(--sriftas-sans); border-radius: 0; resize: vertical; -webkit-appearance: none; }
-.foto { display: flex; flex-wrap: wrap; gap: 6px; }
+.foto { display: flex; flex-wrap: nowrap; gap: 6px; padding-top: 6px; }
 .th { position: relative; width: 64px; height: 64px; flex: none; }
 .th img { width: 100%; height: 100%; object-fit: cover; display: block; border: 1px solid var(--bp-linija); }
 .th button { position: absolute; top: -6px; right: -6px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--bp-juoda); color: #fff; font-size: 18px; line-height: 1; }
-.addfoto { width: 64px; height: 64px; flex: none; border: 2px dashed var(--bp-juoda); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: .6875rem; font-weight: 700; cursor: pointer; background: #fff; }
-.addfoto .ico { width: 22px; height: 22px; }
+.addfoto { flex: 1 1 64px; min-width: 64px; min-height: 64px; border: 2px dashed var(--bp-juoda); display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; font-size: .9375rem; font-weight: 700; cursor: pointer; background: #fff; }
+.addfoto .ico { width: 24px; height: 24px; }
+.fld.num label { width: auto; flex: 1 1 auto; font-size: .875rem; }
+.fld.num input { flex: 0 0 96px; width: 96px; text-align: center; }
 .sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .prn { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--bp-betonas); font-size: .8125rem; }
 .prn b { font-size: .875rem; }

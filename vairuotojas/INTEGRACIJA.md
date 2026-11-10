@@ -90,7 +90,7 @@ Pasirinkimai ir tekstai paimti iš BetonPro vairuotojo modulio (`vairuotojas.php
 | Slankumas per didelis / per mažas | `ql_slankumas` | `1` / `-1`, kitaip `0` |
 | Blogai atsiskiria vanduo | `ql_vanduo` | `0` (gerai – `1`) |
 | Blogai pumpuojamas | `ql_pump` | `0` (gerai – `1`) |
-| Pridėta vandens, l | `vanduo` | litrai. Jei `vanduo > 0` ir `vanduo_tvirt` tuščias → esama `send_vanduo_sms` objekto atstovui; vairuotojui rodoma „Vandens užpylimui laukite objekto atstovo patvirtinimo.“ |
+| Prašoma įpilti vandens, ltr | `vanduo` | litrai. Jei `vanduo > 0` ir `vanduo_tvirt` tuščias → esama `send_vanduo_sms` objekto atstovui; vairuotojui rodoma „Vandens užpylimui laukite objekto atstovo patvirtinimo.“ |
 | Grąžinta betono, m³ + priežastis | `grazintas_betonas`, `grazinto_betono_priezastis` | kaip akte `conr_excess` |
 | Kiekio neatitikimas, Kita, pastaba | `quality_comment` | tekstas |
 | Betonvežis išplautas objekte | `apsiplovimas` | `1` / `0` |

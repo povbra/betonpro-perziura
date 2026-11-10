@@ -399,7 +399,7 @@
   // Tekstai – iš BetonPro lithuanian.json (text_vairuotojas_*).
   var Q = {
     'sl+': 'Slankumas per didelis', 'sl-': 'Slankumas per mažas', qv: 'Blogai atsiskiria vanduo', qp: 'Blogai pumpuojamas',
-    vanduo: 'Pridėta vandens', grazinta: 'Grąžinta betono', kiekis: 'Kiekio neatitikimas', kita: 'Kita'
+    vanduo: 'Prašoma įpilti vandens', grazinta: 'Grąžinta betono', kiekis: 'Kiekio neatitikimas', kita: 'Kita'
   };
   function arPazymeta(v) {
     var k = S.kokybe;
@@ -419,7 +419,7 @@
   function problemos() {
     var k = S.kokybe, e = [];
     ['sl+', 'sl-', 'qv', 'qp', 'kiekis', 'kita'].forEach(function (v) { if (arPazymeta(v)) e.push(Q[v]); });
-    if (k.vanduo !== '') e.push('Pridėta vandens: ' + (+k.vanduo || 0) + ' l');
+    if (k.vanduo !== '') e.push('Prašoma įpilti vandens: ' + (+k.vanduo || 0) + ' ltr');
     if (k.grazintas_betonas !== '') e.push('Grąžinta betono: ' + (+k.grazintas_betonas || 0) + ' m³' + (k.grazinto_betono_priezastis ? ' (' + k.grazinto_betono_priezastis + ')' : ''));
     return e;
   }
@@ -430,9 +430,9 @@
       h += '<button type="button" class="chip" data-kok="' + v + '" aria-pressed="' + arPazymeta(v) + '">' + esc(Q[v]) + '</button>';
     });
     h += '</div>';
-    if (k.vanduo !== '') h += '<div class="fld"><label for="' + p + '-vanduo">Vandens, l</label><input id="' + p + '-vanduo" data-kin="vanduo" type="number" inputmode="numeric" min="0" max="500" value="' + esc(k.vanduo) + '"></div>' +
+    if (k.vanduo !== '') h += '<div class="fld num"><label for="' + p + '-vanduo">Prašoma įpilti vandens, ltr</label><input id="' + p + '-vanduo" data-kin="vanduo" type="number" inputmode="numeric" min="0" max="500" value="' + esc(k.vanduo) + '"></div>' +
       '<span class="vnote">Vandens užpylimui laukite objekto atstovo patvirtinimo.</span>';
-    if (k.grazintas_betonas !== '') h += '<div class="fld"><label for="' + p + '-graz">Grąžinta, m³</label><input id="' + p + '-graz" data-kin="grazintas_betonas" type="number" inputmode="decimal" min="0" max="15" step="0.5" value="' + esc(k.grazintas_betonas) + '"></div>' +
+    if (k.grazintas_betonas !== '') h += '<div class="fld num"><label for="' + p + '-graz">Grąžinta betono, m³</label><input id="' + p + '-graz" data-kin="grazintas_betonas" type="number" inputmode="decimal" min="0" max="15" step="0.5" value="' + esc(k.grazintas_betonas) + '"></div>' +
       '<div class="fld"><label for="' + p + '-grazp">Priežastis</label><input id="' + p + '-grazp" data-kin="grazinto_betono_priezastis" value="' + esc(k.grazinto_betono_priezastis) + '" placeholder="pvz. klientas nepriėmė"></div>';
     return h;
   }
@@ -515,13 +515,13 @@
     var h = '<div class="lapas" id="lapas-fon"><div role="dialog" aria-modal="true" aria-labelledby="lapas-h">' +
       '<div class="hd"><span><span class="kick">Reisas ' + S.ord_trans.id + ' · ' + esc(R.ord_trans.cars) + '</span><h1 id="lapas-h">Pranešimas operatoriui</h1></span>' +
       '<button type="button" class="x" id="lapas-x" aria-label="Uždaryti">×</button></div>' +
-      '<span class="muted">Pažymėkite, ką pastebėjote. Operatorius gaus pranešimą iš karto, klientas jo negauna.</span>' +
+      '<span class="muted">Pažymėkite, ką pastebėjote. Operatorius gaus vidinį pranešimą.</span>' +
       kokybesLaukai('p') +
       '<label class="sr" for="p-kom">Komentaras operatoriui</label><textarea id="p-kom" rows="2" placeholder="Komentaras operatoriui">' + esc(S.juodrastis) + '</textarea><div class="foto">';
     nuotraukos.forEach(function (n, i) { h += '<span class="th"><img src="' + n.dataUrl + '" alt="Nuotrauka ' + (i + 1) + '"><button type="button" data-delfoto="' + i + '" aria-label="Pašalinti nuotrauką ' + (i + 1) + '">×</button></span>'; });
-    if (nuotraukos.length < 4) h += '<label class="addfoto" for="p-foto">' + svg('<path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/>') + '<span>Fotografuoti</span></label>' +
+    if (nuotraukos.length < 4) h += '<label class="addfoto" for="p-foto">' + svg('<path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/>') + (nuotraukos.length ? '<span class="sr">Fotografuoti dar</span>' : '<span>Fotografuoti</span>') + '</label>' +
       '<input id="p-foto" type="file" accept="image/*" capture="environment" class="sr">';
-    h += '</div><span class="muted">Gavėjas: ' + esc(CFG.operatoriui || 'operatorius') + '</span>' +
+    h += '</div>' +
       (lapoKlaida ? '<div class="err" role="alert">' + esc(lapoKlaida) + '</div>' : '') +
       '<div class="act"><button type="button" class="btn btn-o" id="lapas-cancel">Atšaukti</button><button type="button" class="btn btn-r" id="lapas-send"' + (lapoSiuntimas ? ' disabled' : '') + '>' +
       (lapoSiuntimas ? 'Siunčiama…' : 'Siųsti operatoriui') + '</button></div></div></div>';

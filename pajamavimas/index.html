@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#15171A">
+<title>BetonPro · Žaliavų priėmimas</title>
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/betonpro-theme.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app" data-testid="form-root" data-client-uuid="">
+  <header class="hdr">
+    <span class="bp-logo" role="img" aria-label="BetonPro HUB">
+      <svg width="34.8" height="34.8" viewBox="0 0 34 34" aria-hidden="true"><rect x="0" y="3" width="22" height="7" fill="#F5C518"/><rect x="8" y="13.5" width="26" height="7" fill="#FAF9F6"/><rect x="3" y="24" width="18" height="7" fill="#FAF9F6" opacity=".45"/></svg>
+      <span class="bp-logo-t">BetonPro</span>
+      <span class="bp-logo-hub"><i></i><i></i><i></i><i></i>HUB</span>
+    </span>
+    <div class="hdr-btns">
+      <label class="hdr-btn hdr-lang"><span class="sr" data-i18n="lang">Kalba</span>
+        <select data-testid="lang-switch"><option value="lt">LT</option><option value="en">EN</option><option value="ru">RU</option><option value="pl">PL</option></select>
+      </label>
+      <button type="button" class="hdr-btn" data-testid="btn-aplus" data-i18n-aria="aplus" aria-pressed="false">A+</button>
+    </div>
+  </header>
+
+  <div class="banner" data-testid="offline-banner-android" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M3 3l18 18"/></svg><span data-i18n="offline_android"></span></div>
+  <div class="banner" data-testid="offline-banner-ios" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M3 3l18 18"/></svg><span data-i18n="offline_ios"></span></div>
+  <div class="banner banner-ok" data-testid="sent-banner" role="status" hidden></div>
+
+  <main>
+    <!-- 01 · Pradžia -->
+    <section class="scr" id="s01" hidden>
+      <span class="kick"><i class="sq"></i><span><span data-testid="plant-name"></span> · <span data-i18n="receiving_caps"></span></span></span>
+      <h1 data-i18n="title_start"></h1>
+      <p class="lead" data-i18n="text_start"></p>
+      <div class="car" id="car" hidden>
+        <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 7h11v9H2zM13 10h4l4 4v2h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+        <div class="car-t"><b class="mono" id="car-plate"></b><span data-i18n="vehicle_remembered"></span></div>
+        <button type="button" class="lnk" id="car-change" data-i18n="change"></button>
+      </div>
+      <div class="car car-edit" id="car-edit" hidden>
+        <label class="fld"><span data-i18n="f_vehicle"></span><input id="car-input" autocomplete="off" autocapitalize="characters"></label>
+        <button type="button" class="lnk" id="car-save" data-i18n="btn_save"></button>
+      </div>
+      <ol class="steps">
+        <li><span class="mono">1</span><div><b data-i18n="step1_title"></b><span data-i18n="step1_text"></span></div></li>
+        <li><span class="mono">2</span><div><b data-i18n="step2_title"></b><span data-i18n="step2_text"></span></div></li>
+        <li><span class="mono">3</span><div><b data-i18n="step3_title"></b><span data-i18n="step3_text"></span></div></li>
+      </ol>
+      <div class="grow"></div>
+      <button type="button" class="btn btn-y btn-xl" data-testid="btn-photo"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg><span data-i18n="btn_photo"></span></button>
+      <button type="button" class="btn btn-o" data-testid="btn-manual" data-act="manual"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg><span data-i18n="btn_manual"></span></button>
+    </section>
+
+    <!-- Atpažinimas -->
+    <section class="scr scr-wait" id="s02" hidden aria-live="polite">
+      <div class="spin" aria-hidden="true"></div>
+      <h1 data-i18n="recognizing"></h1>
+      <p class="lead" data-i18n="recognizing_text"></p>
+    </section>
+
+    <!-- 03 · Patikrinimas -->
+    <section class="scr" id="s03" hidden>
+      <span class="kick" id="s03-kick"></span>
+      <div class="row-h">
+        <h1 data-i18n="title_check"></h1>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+      <div class="list" id="fields"></div>
+      <div class="grow"></div>
+      <button type="button" class="btn btn-y btn-l" data-testid="btn-submit" data-i18n="btn_submit"></button>
+      <button type="button" class="lnk lnk-c" data-testid="btn-edit" data-i18n="btn_edit"></button>
+    </section>
+
+    <!-- 04 · Taisymas / įvedimas ranka -->
+    <section class="scr" id="s04" hidden>
+      <span class="kick" data-i18n="kicker_edit"></span>
+      <h1 data-i18n="title_edit"></h1>
+      <p class="note" id="s04-note" hidden></p>
+      <div class="form" id="form"></div>
+      <div class="grow"></div>
+      <button type="button" class="btn btn-y btn-l" data-testid="btn-save" data-i18n="btn_save"></button>
+      <button type="button" class="lnk lnk-c" id="s04-back" data-i18n="back_photo"></button>
+    </section>
+
+    <!-- 05 · Pateikta -->
+    <section class="scr" id="s05" hidden>
+      <span class="ok-ico"><svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+      <span class="kick" data-testid="submitted-nr" id="s05-kick"></span>
+      <h1 id="s05-title" data-i18n="title_done"></h1>
+      <p class="lead" id="s05-text"></p>
+      <ul class="checks" id="s05-checks">
+        <li><i class="tick"></i><span data-i18n="done_saved"></span></li>
+        <li><i class="tick"></i><span data-i18n="done_passed"></span></li>
+      </ul>
+      <div class="grow"></div>
+      <button type="button" class="btn btn-o" id="s05-next"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg><span data-i18n="btn_next"></span></button>
+    </section>
+
+    <!-- 06 · Nepavyko -->
+    <section class="scr" id="s06" hidden>
+      <span class="kick" id="s06-kick"></span>
+      <h1 data-i18n="title_failed"></h1>
+      <div class="fail">
+        <img id="s06-img" alt="" data-testid="photo-thumb">
+        <p id="s06-text"></p>
+      </div>
+      <div class="list" id="s06-list"></div>
+      <div class="grow"></div>
+      <button type="button" class="btn btn-y btn-l" id="s06-retake"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg><span data-i18n="btn_retake"></span></button>
+      <button type="button" class="btn btn-o" data-testid="btn-manual-missing" data-act="manual-missing"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg><span data-i18n="btn_manual_missing"></span></button>
+    </section>
+
+    <!-- Nuoroda negalioja -->
+    <section class="scr" id="s-expired" hidden>
+      <span class="kick"><i class="sq"></i>BetonPro</span>
+      <h1 data-testid="link-expired" data-i18n="link_expired"></h1>
+    </section>
+  </main>
+
+  <input type="file" accept="image/*" capture="environment" data-testid="photo-input" class="sr" tabindex="-1" aria-hidden="true">
+</div>
+<script src="config.js"></script>
+<script src="i18n.js" defer></script>
+<script src="jsQR.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>

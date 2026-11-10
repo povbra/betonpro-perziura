@@ -1,5 +1,8 @@
 /**
- * BetonPro · Vairuotojo reiso forma (testas) – ataskaitos siuntimas el. paštu.
+ * BetonPro · Vairuotojo reiso forma (testas) – ataskaitos ir pranešimų operatoriui siuntimas el. paštu.
+ *
+ * Veiksmai: reiso_ataskaita (po „Pateikti pasirašyti“), operatoriaus_pranesimas (kokybės neatitikimas,
+ * komentaras, nuotraukos – bet kada po atvykimo į objektą).
  *
  * Diegimas (vieną kartą):
  * 1. script.google.com → New project → įklijuokite šį failą.
@@ -10,29 +13,32 @@
  * Laiškas siunčiamas iš jūsų Google paskyros (MailApp). Gavėjai apriboti GAVEJAI sąrašu,
  * kad viešo adreso nebūtų galima panaudoti siųsti kitiems.
  */
-var GAVEJAI = ['pbraduls@gmail.com'];
+var GAVEJAI = ['pbraduls@gmail.com', 'uzsakymai@c3betonas.lt'];
 
 function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
-    if (d.action !== 'reiso_ataskaita') return out_({ ok: false, error: 'nežinomas veiksmas' });
+    if (d.action !== 'reiso_ataskaita' && d.action !== 'operatoriaus_pranesimas') return out_({ ok: false, error: 'nežinomas veiksmas' });
     var raktas = PropertiesService.getScriptProperties().getProperty('RAKTAS');
     if (raktas && d.raktas !== raktas) return out_({ ok: false, error: 'neteisingas raktas' });
     var kam = String(d.kam || '').trim().toLowerCase();
     if (GAVEJAI.indexOf(kam) < 0) return out_({ ok: false, error: 'gavėjas neleidžiamas' });
 
-    var json = JSON.stringify(d.duomenys || {}, null, 2);
-    var failas = 'reisas_' + ((d.duomenys && d.duomenys.ord_trans && d.duomenys.ord_trans.id) || 'x') + '.json';
-    MailApp.sendEmail({
-      to: kam,
-      subject: String(d.tema || 'Betono pristatymo ataskaita').slice(0, 200),
-      body: String(d.tekstas || ''),
-      htmlBody: String(d.html || ''),
-      name: 'BetonPro HUB',
-      attachments: [Utilities.newBlob(json, 'application/json', failas)]
+    var id = (d.duomenys && ((d.duomenys.ord_trans && d.duomenys.ord_trans.id) || d.duomenys.ord_trans_id)) || 'x';
+    var priedai = [Utilities.newBlob(JSON.stringify(d.duomenys || {}, null, 2), 'application/json', (d.action === 'reiso_ataskaita' ? 'reisas_' : 'pranesimas_') + id + '.json')];
+    (d.nuotraukos || []).slice(0, 4).forEach(function (n, i) {
+      priedai.push(Utilities.newBlob(Utilities.base64Decode(String(n.base64 || '')), 'image/jpeg', String(n.name || ('nuotrauka_' + (i + 1) + '.jpg'))));
     });
-    // Žurnalas (neprivaloma): paskutinės 200 ataskaitų Script Properties nesaugomos – tik Logger.
-    console.log('Ataskaita išsiųsta: ' + failas);
+    var laiskas = {
+      to: kam,
+      subject: String(d.tema || (d.action === 'reiso_ataskaita' ? 'Betono pristatymo ataskaita' : 'Vairuotojo pranešimas')).slice(0, 200),
+      body: String(d.tekstas || ''),
+      name: 'BetonPro HUB',
+      attachments: priedai
+    };
+    if (d.html) laiskas.htmlBody = String(d.html);
+    MailApp.sendEmail(laiskas);
+    console.log(d.action + ' išsiųsta: ' + id + ', nuotraukų ' + (priedai.length - 1));
     return out_({ ok: true });
   } catch (err) {
     return out_({ ok: false, error: String(err && err.message || err) });

@@ -7,15 +7,29 @@ Visi laukų pavadinimai sutampa su BetonPro DB (atkurta schema, 2026-11-03). Tik
 
 | # | Statusas | Laukas | Kas įrašo | Formos veiksmas |
 |---|---|---|---|---|
-| – | Sąlytis (maišymo pradžia, 90 min laikrodžiui) | `salytis` | BetonPro (mazgas) | tik rodoma |
+| – | W/C sąlytis (vandens ir cemento sąlytis, 90 min laikrodžiui) | `salytis` | BetonPro (mazgas) | tik rodoma |
 | 1 | Pasikrovimas | `pakrovimas` | BetonPro (mazgas) | tik rodoma, užrakinta |
 | 2 | Išvykimas iš betono mazgo | `isvyko` | BetonPro (mazgas) | tik rodoma, užrakinta |
 | 3 | Atvykimas pas klientą | `atvyko` | vairuotojas | „Atvykau į objektą“ |
 | 4 | Iškrovimo pradžia | `iskrovimo_pradzia` | vairuotojas | „Pradėjau iškrauti“ |
-| 5 | Iškrovimo pabaiga | `iskrovimo_pabaiga` | vairuotojas | „Baigiau iškrauti“ → `status = 3` |
+| 5 | Iškrovimo pabaiga | `iskrovimo_pabaiga` | vairuotojas | „Baigiau iškrauti“ |
 | 6 | Išvykimas iš kliento | `isvyko_obj` | vairuotojas | „Išvykstu iš objekto“ |
 | 7 | Grįžimas į betono mazgą | `gryzo` | vairuotojas | „Grįžau į mazgą“ – **tik jei betonvežiui priskirtas kitas reisas**. Jei kito reiso nėra, statusas nerodomas, pristatymas baigiamas išvykus iš objekto (`gryzo` = NULL) |
 | 8 | Pateikimas pasirašyti | – | vairuotojas | „Pateikti pasirašyti“ → SMS klientui pasirašyti važtaraštį (esama logika) |
+
+### 1a. `ord_trans.status` reikšmės (iš `vairuotojas.php` → `updateOrder`)
+
+| Įvykis | `status` |
+|---|---|
+| laukia / nepradėta | ≤ 0 arba 5 |
+| `isvyko` (išvyko iš mazgo) | 2 |
+| `atvyko` | 6 |
+| `iskrovimo_pradzia` | lieka 6 |
+| `iskrovimo_pabaiga` | 7 |
+| `isvyko_obj` | 8 |
+| `gryzo` / pristatymas baigtas | 3 |
+
+Dabartinė SMS forma (`transp.php` → `valdymas`) `iskrovimo_pabaiga` metu iš karto nustato `status = 3` ir apskaičiuoja `gryzo = pabaiga + kelionės laikas`. Siūloma naudoti tas pačias reikšmes kaip vairuotojo programėlėje: 6 → 7 → 8 → 3; jei kito reiso nėra, `status = 3` nustatomas po `isvyko_obj` (arba „Pateikti pasirašyti“). Laikai DB saugomi `time` (H:i) formatu, kiekvienas pakeitimas – į istoriją su žyma „(SMS Tracker)“.
 
 Kiti laukai, kuriuos forma keičia: `distance` (km mazgas–objektas, **viena kryptis**, ne ×2), `driver`, `driver_tel`, `transp` (vairuotojo patvirtinti duomenys), `driver_accepted = 1`, `phone_confirmed = 1`.
 
@@ -62,4 +76,30 @@ Juoda – įvykę statusai, geltona – dabartinis (paskutinis įvykęs), pilka 
 
 Pateikus – laiškas (HTML lentelės, tinka persiųsti klientui) + JSON priedas `reisas_<id>.json` su tais pačiais laukais. Teste siunčia Google Apps Script (`apps-script/Code.gs`); HUB'e – esamas el. pašto siuntimas.
 
-Rodikliai: kelionė (`atvyko − isvyko`), laukimas objekte / prastova (`iskrovimo_pradzia − atvyko`), iškrovimas, betono amžius (`iskrovimo_pabaiga − salytis`, riba 90 min), atvykimas pagal planą, reiso ciklas (`gryzo` arba `isvyko_obj` − `pakrovimas`).
+Rodikliai: kelionė (`atvyko − isvyko`), laukimas objekte / prastova (`iskrovimo_pradzia − atvyko`), iškrovimas, laikas nuo W/C sąlyčio iki iškrovimo pabaigos (`iskrovimo_pabaiga − salytis`, riba 90 min), atvykimas pagal planą, reiso ciklas (`gryzo` arba `isvyko_obj` − `pakrovimas`).
+
+
+## 6. Betono kokybė → `bet_<pad>_ord_trans`
+
+Pasirinkimai ir tekstai paimti iš BetonPro vairuotojo modulio (`vairuotojas.php`, `lithuanian.json` → `text_vairuotojas_*`).
+
+| Formoje | Laukas | Reikšmė |
+|---|---|---|
+| Slankumas per didelis / per mažas | `ql_slankumas` | `1` / `-1`, kitaip `0` |
+| Blogai atsiskiria vanduo | `ql_vanduo` | `0` (gerai – `1`) |
+| Blogai pumpuojamas | `ql_pump` | `0` (gerai – `1`) |
+| Pridėta vandens, l | `vanduo` | litrai. Jei `vanduo > 0` ir `vanduo_tvirt` tuščias → esama `send_vanduo_sms` objekto atstovui; vairuotojui rodoma „Vandens užpylimui laukite objekto atstovo patvirtinimo.“ |
+| Grąžinta betono, m³ + priežastis | `grazintas_betonas`, `grazinto_betono_priezastis` | kaip akte `conr_excess` |
+| Kiekio neatitikimas, Kita, pastaba | `quality_comment` | tekstas |
+| Betonvežis išplautas objekte | `apsiplovimas` | `1` / `0` |
+
+`pretenzijos_tipai` (JSON) atitinka `ord_pretenzija` kategorijas: `slankumas`, `vanduo`, `pompa`, `kiekis`, `kita` – jei reikia automatiškai sukurti pretenziją.
+
+## 7. Pranešimas operatoriui (bet kuriame ekrane po atvykimo)
+
+Mygtukas „Pranešti operatoriui apie kokybę“ rodomas nuo `atvyko` iki pateikimo. Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
+
+- HUB'e – esamas `push_it($ccar, "message", ...)` su tekstu „Pranešimas iš vairuotojo apie mišinio kokybės neatitikimą objekte. Auto : {cars}, važtaraščio ID - {id}.“ + el. laiškas `uzsakymai@c3betonas.lt` su nuotraukomis;
+- teste – Apps Script veiksmas `operatoriaus_pranesimas` (gavėjas `config.js` → `operatoriui`, testui `pbraduls@gmail.com`); kol `endpoint` tuščias – telefono „Bendrinti“ (su nuotraukomis) arba `mailto:`.
+
+Siūlomas API: `POST ...&act=reisas_pranesimas` `{ token, ql_slankumas, ql_vanduo, ql_pump, vanduo, grazintas_betonas, grazinto_betono_priezastis, komentaras, nuotraukos[] }`. Nuotraukos – prie užsakymo failų (`ord_files` ar pan.). Pranešimai klientui nesiunčiami ir į kliento ataskaitą nepatenka (ataskaitoje – tik kokybės santrauka).

@@ -13,4 +13,7 @@ Eiga telefone išsaugoma; apačioje „Testas: pradėti šį reisą iš naujo“
 2. Deploy → Web app (Execute as: Me, Access: Anyone) → URL įrašyti į `config.js` → `endpoint`.
 3. Kol `endpoint` tuščias, po „Pateikti pasirašyti“ rodoma ataskaita ir mygtukas „Siųsti į pbraduls@gmail.com“ (atidaro el. pašto programėlę).
 
+## Pranešimas operatoriui apie kokybę
+Nuo „Atvykau į objektą“ kiekviename ekrane yra mygtukas „Pranešti operatoriui apie kokybę“: BetonPro kokybės pasirinkimai, komentaras, iki 4 nuotraukų (kamera). Gavėjas – `config.js` → `operatoriui` (testui pbraduls@gmail.com, gamyboje uzsakymai@c3betonas.lt). Kol `endpoint` tuščias, telefone atidaromas „Bendrinti“ (pasirinkite el. paštą – nuotraukos pridedamos) arba el. pašto programėlė.
+
 Programuotojams: `INTEGRACIJA.md`.

@@ -163,6 +163,39 @@ h1 { margin: 0; font-family: var(--sriftas-display); font-weight: 700; font-size
 .reset { text-align: center; padding: 6px 0 4px; margin-top: auto; }
 .reset button { background: none; border: 0; text-decoration: underline; color: var(--bp-pilka); font-size: .6875rem; min-height: 32px; }
 
+/* Kokybė, pranešimas operatoriui */
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--bp-juoda); }
+.seg button { min-height: 44px; border: 0; background: #fff; font-weight: 700; font-size: .875rem; color: var(--bp-juoda); }
+.seg button + button { border-left: 2px solid var(--bp-juoda); }
+.seg button[aria-pressed="true"] { background: var(--bp-juoda); color: var(--bp-popierius); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { min-height: 40px; padding: 6px 12px; border: 2px solid var(--bp-juoda); background: #fff; font-weight: 600; font-size: .8125rem; color: var(--bp-juoda); border-radius: 0; max-width: 100%; }
+.chip[aria-pressed="true"] { background: var(--bp-geltona); }
+.chip[aria-pressed="true"]::before { content: "✓ "; }
+.chk { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: .875rem; font-weight: 600; }
+.chk input { width: 22px; height: 22px; accent-color: var(--bp-juoda); flex: none; }
+textarea { width: 100%; min-height: 64px; border: 2px solid var(--bp-juoda); background: #fff; padding: 8px; font: 500 16px/1.35 var(--sriftas-sans); border-radius: 0; resize: vertical; -webkit-appearance: none; }
+.foto { display: flex; flex-wrap: wrap; gap: 6px; }
+.th { position: relative; width: 64px; height: 64px; flex: none; }
+.th img { width: 100%; height: 100%; object-fit: cover; display: block; border: 1px solid var(--bp-linija); }
+.th button { position: absolute; top: -6px; right: -6px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--bp-juoda); color: #fff; font-size: 18px; line-height: 1; }
+.addfoto { width: 64px; height: 64px; flex: none; border: 2px dashed var(--bp-juoda); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: .6875rem; font-weight: 700; cursor: pointer; background: #fff; }
+.addfoto .ico { width: 22px; height: 22px; }
+.sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.btn-w { background: var(--bp-popierius); color: #8A1C10; border: 2px solid #B3261E; min-height: 48px; font-size: .875rem; }
+.btn-w .ico { stroke: #B3261E; }
+.btn-w small { font-weight: 500; color: var(--bp-pilka); }
+.prn { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--bp-betonas); font-size: .8125rem; }
+.prn b { font-size: .875rem; }
+.lapas { position: fixed; inset: 0; z-index: 15; background: rgba(21,23,26,.55); display: flex; align-items: flex-end; justify-content: center; }
+.lapas > div { width: 100%; max-width: 560px; max-height: calc(100dvh - var(--hdr) - 8px); max-height: calc(100vh - var(--hdr) - 8px); overflow: auto; -webkit-overflow-scrolling: touch; background: var(--bp-popierius); border-top: 6px solid #B3261E; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
+.lapas .hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.lapas .x { width: 44px; height: 44px; flex: none; border: 2px solid var(--bp-juoda); background: #fff; font-size: 22px; line-height: 1; }
+.lapas .act { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; position: sticky; bottom: -12px; background: var(--bp-popierius); padding: 6px 0 0; }
+.lapas .act .btn { min-height: 52px; }
+.btn-r { background: #B3261E; color: #fff; }
+.vnote { font-size: .75rem; color: #8A1C10; }
+
 /* Žemi ekranai */
 @media (max-height: 620px) {
   .btn-y { min-height: 60px; padding: 8px 14px; }

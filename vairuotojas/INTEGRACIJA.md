@@ -99,7 +99,7 @@ Pasirinkimai ir tekstai paimti iš BetonPro vairuotojo modulio (`vairuotojas.php
 
 ## 7. Pranešimas operatoriui (bet kuriame ekrane po atvykimo)
 
-Tekstinė nuoroda su trikampio ženklu „Pranešti apie kokybę“ – virš statuso mygtuko, dešinėje, nuo `atvyko` iki `isvyko_obj`. Tai tik galimybė: kokybės tvirtinti nereikia, nepranešus ataskaitoje rašoma „Be pastabų“. Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
+Tekstinė nuoroda su trikampio ženklu „Pranešti operatoriui“ – virš statuso mygtuko, dešinėje, visą reisą. Paspaudus pasirenkama: „Betono kokybė“ (aktyvi nuo `atvyko` iki `isvyko_obj`) arba „Betonvežio gedimas“. Tai tik galimybė: kokybės tvirtinti nereikia, nepranešus ataskaitoje rašoma „Be pastabų“. Lape: kokybės pasirinkimai (6 sk.), komentaras, iki 4 nuotraukų (telefono kamera, sumažinama iki 1600 px JPEG). Pranešimas siunčiamas iš karto:
 
 - HUB'e – esamas `push_it($ccar, "message", ...)` su tekstu „Pranešimas iš vairuotojo apie mišinio kokybės neatitikimą objekte. Auto : {cars}, važtaraščio ID - {id}.“ + el. laiškas `uzsakymai@c3betonas.lt` su nuotraukomis;
 - teste – Apps Script veiksmas `operatoriaus_pranesimas` (gavėjas `config.js` → `operatoriui`, testui `pbraduls@gmail.com`); kol `endpoint` tuščias – telefono „Bendrinti“ (su nuotraukomis) arba `mailto:`.
@@ -107,9 +107,9 @@ Tekstinė nuoroda su trikampio ženklu „Pranešti apie kokybę“ – virš st
 Siūlomas API: `POST ...&act=reisas_pranesimas` `{ token, ql_slankumas, ql_vanduo, ql_pump, vanduo, grazintas_betonas, grazinto_betono_priezastis, komentaras, nuotraukos[] }`. Nuotraukos – prie užsakymo failų (`ord_files` ar pan.). Pranešimai klientui nesiunčiami ir į kliento ataskaitą nepatenka (ataskaitoje – tik kokybės santrauka).
 
 
-## 8. Gedimas („Sugedau“)
+## 8. Gedimas
 
-Nuoroda su trikampio ženklu „Sugedau“ – virš statuso mygtuko, kairėje, visą reisą (nuo reiso priėmimo iki pabaigos). Atidaro langą su neprivalomu komentaru → „Pranešti dispečeriui“. Statusų žymėjimas nestabdomas. Kol gedimas aktyvus, po statusų juosta rodoma raudona eilutė su mygtuku „Gedimas pašalintas“.
+„Pranešti operatoriui“ → „Betonvežio gedimas“ (visą reisą, nuo priėmimo iki pabaigos). Atidaro langą su neprivalomu komentaru → „Pranešti dispečeriui“. Statusų žymėjimas nestabdomas. Kol gedimas aktyvus, po statusų juosta rodoma raudona eilutė su mygtuku „Gedimas pašalintas“.
 
 - HUB'e – kaip vairuotojo programėlėje: `tracker_set_hazard_status` → `automotive_cars.gedimas = 1` (pašalinus `0`) ir Pusher įvykis `emergency` dispečeriui; galima pildyti `ord_trans.gedimas_start` (programėlėje užkomentuota).
 - Pranešime: auto, reisas, vairuotojas, betonas ir objektas, laikas nuo W/C sąlyčio, dabartinis statusas, vieta (jei įjungta), komentaras.

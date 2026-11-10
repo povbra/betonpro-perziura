@@ -440,12 +440,23 @@
   // Nuorodos virš statuso mygtuko: kairėje „Sugedau“ (visą reisą), dešinėje kokybė (nuo atvykimo iki išvykimo iš objekto).
   function arObjekte() { return !!(S.ord_trans.atvyko && !S.ord_trans.isvyko_obj); }
   function arReise(ekr) { return ekr !== 'patvirtinimas' && ekr !== 'baigta' && ekr !== 'pasirinkimas'; }
+  // Viena nuoroda virš statuso mygtuko, dešinėje. Paspaudus – pasirinkimas: betono kokybė arba gedimas.
   function nuorodos(ekr) {
     if (!R || !arReise(ekr) || taisomas) return '';
-    var n = S.pranesimai.length;
-    return '<div class="plinks">' +
-      (S.gedimas ? '<span></span>' : '<button type="button" class="pl" id="lnk-gedimas">' + svg(TRIK) + 'Sugedau</button>') +
-      (arObjekte() ? '<button type="button" class="pl" id="lnk-kokybe">' + svg(TRIK) + 'Pranešti apie kokybę' + (n ? ' (' + n + ')' : '') + '</button>' : '') + '</div>';
+    return '<div class="plinks"><button type="button" class="pl" id="lnk-operatoriui">' + svg(TRIK) + 'Pranešti operatoriui</button></div>';
+  }
+  function pasirinkimoLapas() {
+    var obj = arObjekte(), n = S.pranesimai.length;
+    function opt(id, ico, t, sub, dis) {
+      return '<button type="button" class="opt" id="' + id + '"' + (dis ? ' disabled' : '') + '>' + svg(ico) + '<span><b>' + esc(t) + '</b><span class="muted">' + esc(sub) + '</span></span></button>';
+    }
+    return '<div class="lapas" id="lapas-fon"><div role="dialog" aria-modal="true" aria-labelledby="lapas-h">' +
+      '<div class="hd"><span><span class="kick">Reisas ' + S.ord_trans.id + ' · ' + esc(R.ord_trans.cars) + '</span><h1 id="lapas-h">Pranešti operatoriui</h1></span>' +
+      '<button type="button" class="x" id="lapas-x" aria-label="Uždaryti">×</button></div>' +
+      opt('opt-kokybe', TRIK, 'Betono kokybė', obj ? 'Slankumas, vanduo, siurblys, kiekis, nuotrauka' + (n ? ' · išsiųsta: ' + n : '') : 'Galima atvykus į objektą', !obj) +
+      (S.gedimas ? opt('opt-gedimas-pab', '<path d="M4 12.5l5 5L20 6.5"/>', 'Gedimas pašalintas', 'Pranešta apie gedimą ' + hm(S.gedimas.pradzia)) :
+        opt('opt-gedimas', '<path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>', 'Betonvežio gedimas', 'Dispečeris gaus pranešimą iš karto')) +
+      '<button type="button" class="btn btn-l" id="lapas-cancel">Atšaukti</button></div></div>';
   }
   function gedimoJuosta() {
     if (!S.gedimas) return '';
@@ -745,8 +756,8 @@
       (R ? '<div class="reset"><button type="button" id="btn-reset">Testas: pradėti šį reisą iš naujo</button></div>' : '') + '</section>';
     $foot.innerHTML = e.f ? nuorodos(ekr) + e.f : ''; $foot.hidden = !e.f;
     if (lapas === 'kokybe' && !(R && arObjekte())) lapas = false;
-    if (lapas === 'gedimas' && !(R && arReise(ekr))) lapas = false;
-    $lapas.innerHTML = lapas === 'kokybe' ? lapasHtml() : lapas === 'gedimas' ? gedimoLapas() : '';
+    if ((lapas === 'gedimas' || lapas === 'pasirinkimas') && !(R && arReise(ekr))) lapas = false;
+    $lapas.innerHTML = lapas === 'kokybe' ? lapasHtml() : lapas === 'gedimas' ? gedimoLapas() : lapas === 'pasirinkimas' ? pasirinkimoLapas() : '';
     document.body.style.overflow = lapas ? 'hidden' : '';
     bind();
     clearInterval(tick);
@@ -818,8 +829,10 @@
     var ap = document.getElementById('k-apsipl'); if (ap) ap.addEventListener('change', function () { S.kokybe.apsiplovimas = ap.checked; save(); });
     // Pranešimas operatoriui (bet kuriame ekrane po atvykimo)
     function atidaryti(kas) { return function () { lapas = kas; lapoKlaida = ''; render(); var x = document.getElementById('lapas-x'); if (x) x.focus(); }; }
-    on('lnk-kokybe', atidaryti('kokybe')); on('lnk-gedimas', atidaryti('gedimas'));
-    function uzdaryti() { var kas = lapas; lapas = false; lapoKlaida = ''; lapoSiuntimas = false; render(); var b = document.getElementById('lnk-' + kas); if (b) b.focus(); }
+    on('lnk-operatoriui', atidaryti('pasirinkimas'));
+    on('opt-kokybe', atidaryti('kokybe')); on('opt-gedimas', atidaryti('gedimas'));
+    on('opt-gedimas-pab', function () { lapas = false; siustiGedima(true); });
+    function uzdaryti() { lapas = false; lapoKlaida = ''; lapoSiuntimas = false; render(); var b = document.getElementById('lnk-operatoriui'); if (b) b.focus(); }
     on('gedimas-send', function () { if (!lapoSiuntimas) siustiGedima(false); });
     on('btn-gedimas-pab', function () { siustiGedima(true); });
     var gk = document.getElementById('g-kom'); if (gk) gk.addEventListener('input', function () { S.gedimoKom = gk.value; save(); });

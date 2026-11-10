@@ -2,7 +2,7 @@
  * BetonPro · Vairuotojo reiso forma (testas) – ataskaitos ir pranešimų operatoriui siuntimas el. paštu.
  *
  * Veiksmai: reiso_ataskaita (po „Pateikti pasirašyti“), operatoriaus_pranesimas (kokybės neatitikimas,
- * komentaras, nuotraukos – bet kada po atvykimo į objektą).
+ * komentaras, nuotraukos – bet kada po atvykimo į objektą), gedimas (betonvežio gedimas ir jo pašalinimas).
  *
  * Diegimas (vieną kartą):
  * 1. script.google.com → New project → įklijuokite šį failą.
@@ -18,14 +18,14 @@ var GAVEJAI = ['pbraduls@gmail.com', 'uzsakymai@c3betonas.lt'];
 function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
-    if (d.action !== 'reiso_ataskaita' && d.action !== 'operatoriaus_pranesimas') return out_({ ok: false, error: 'nežinomas veiksmas' });
+    if (['reiso_ataskaita', 'operatoriaus_pranesimas', 'gedimas'].indexOf(d.action) < 0) return out_({ ok: false, error: 'nežinomas veiksmas' });
     var raktas = PropertiesService.getScriptProperties().getProperty('RAKTAS');
     if (raktas && d.raktas !== raktas) return out_({ ok: false, error: 'neteisingas raktas' });
     var kam = String(d.kam || '').trim().toLowerCase();
     if (GAVEJAI.indexOf(kam) < 0) return out_({ ok: false, error: 'gavėjas neleidžiamas' });
 
     var id = (d.duomenys && ((d.duomenys.ord_trans && d.duomenys.ord_trans.id) || d.duomenys.ord_trans_id)) || 'x';
-    var priedai = [Utilities.newBlob(JSON.stringify(d.duomenys || {}, null, 2), 'application/json', (d.action === 'reiso_ataskaita' ? 'reisas_' : 'pranesimas_') + id + '.json')];
+    var priedai = [Utilities.newBlob(JSON.stringify(d.duomenys || {}, null, 2), 'application/json', (d.action === 'reiso_ataskaita' ? 'reisas_' : d.action === 'gedimas' ? 'gedimas_' : 'pranesimas_') + id + '.json')];
     (d.nuotraukos || []).slice(0, 4).forEach(function (n, i) {
       priedai.push(Utilities.newBlob(Utilities.base64Decode(String(n.base64 || '')), 'image/jpeg', String(n.name || ('nuotrauka_' + (i + 1) + '.jpg'))));
     });

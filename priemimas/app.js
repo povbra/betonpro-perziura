@@ -227,13 +227,19 @@ async function runAI(id) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': k, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: S.model, max_tokens: 4000, system: sysPrompt(), tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name }, messages: [{ role: 'user', content: userPrompt(L) }] })
+      body: JSON.stringify({ model: S.model, max_tokens: 8000, system: sysPrompt() + '\n\nATSAKYMO FORMA: visada atsakyk tik iškviesdamas įrankį uzsakymo_juodrastis (jokio kito teksto).', tools: [TOOL], tool_choice: { type: 'auto' }, messages: [{ role: 'user', content: userPrompt(L) }] })
     });
     const j = await r.json();
     if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
     const tu = (j.content || []).find((c) => c.type === 'tool_use');
-    if (!tu) throw new Error('AI negrąžino struktūrizuoto atsakymo.');
-    S.res[id] = Object.assign(tu.input, { _model: S.model, _ms: Date.now() - t0, _usage: j.usage, _at: new Date().toISOString() });
+    let inp = tu && tu.input;
+    if (!inp) {
+      const txt = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (m) { try { inp = JSON.parse(m[0]); } catch (e) {} }
+    }
+    if (!inp || !inp.tipas) throw new Error('AI negrąžino struktūrizuoto atsakymo.');
+    S.res[id] = Object.assign(inp, { _model: S.model, _ms: Date.now() - t0, _usage: j.usage, _at: new Date().toISOString() });
     S.aiLog.unshift({ id, ms: Date.now() - t0, in: j.usage && j.usage.input_tokens, out: j.usage && j.usage.output_tokens, model: S.model });
     S.aiLog = S.aiLog.slice(0, 60);
     initEdit(id, true);

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>BetonPro · Užsakymų priėmimas (testas)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="shell">
+  <nav class="side" aria-label="Meniu">
+    <a class="logo" href="./" aria-label="BetonPro HUB"><span class="lg-mark">BP</span><span class="lg-txt">BetonPro <b>HUB</b></span></a>
+    <div class="side-co"><span class="eb">Įmonė</span><b>C3 Betonas</b><span class="mono">Testinė aplinka</span></div>
+    <button type="button" class="nvl" data-view="letters" aria-current="page"><span>Užsakymų priėmimas</span><span class="nv-badge" id="nvPending">0</span></button>
+    <button type="button" class="nvl" data-view="load"><span>Dienos apkrova</span><span class="nv-badge nv-dark" id="nvApproved">0</span></button>
+    <button type="button" class="nvl" data-view="recipes"><span>Receptai</span></button>
+    <button type="button" class="nvl" data-view="settings"><span>Nustatymai ir AI</span><span class="nv-dot" id="nvAi" title="AI neprijungtas"></span></button>
+    <span class="side-fill"></span>
+    <div class="side-note">Testinė versija. Laiškai – 30 paskutinių iš uzsakymai@ (iki 2026-11-11), žmonių vardai ir kontaktai užkoduoti. Niekas nesiunčiama klientams.</div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <div>
+        <span class="eb"><span class="sq-y"></span><span id="crumb">Užsakymai · Priėmimas</span></span>
+        <h1 id="pageTitle">Gauti laiškai ir tvirtinimas</h1>
+      </div>
+      <div class="top-r">
+        <span class="mono muted" id="aiState">AI: neprijungtas</span>
+        <button type="button" class="btn btn-ghost" id="btnReset" title="Išvalyti testo būseną">Pradėti testą iš naujo</button>
+      </div>
+    </header>
+
+    <section class="view" id="view-letters">
+      <div class="strip" id="strip"></div>
+      <div class="lay">
+        <aside class="col-list" aria-label="Laiškų eilė">
+          <div class="filters" id="filters"></div>
+          <ol class="list" id="list"></ol>
+        </aside>
+        <section class="col-detail" id="detail" aria-live="polite"></section>
+        <aside class="col-side" id="side" aria-label="Atsakymas ir tvirtinimas"></aside>
+      </div>
+    </section>
+
+    <section class="view" id="view-load" hidden></section>
+    <section class="view" id="view-recipes" hidden></section>
+    <section class="view" id="view-settings" hidden></section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

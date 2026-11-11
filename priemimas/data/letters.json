@@ -1,0 +1,532 @@
+[
+ {
+  "id": "L01",
+  "received": "2026-11-11T08:40",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Instita“",
+  "contact": {
+   "name": "A. A.",
+   "role": "statybos vadovas",
+   "tel": "+370 636 •• •••",
+   "mail": "a.a•••@instita.com"
+  },
+  "subject": "Užsakymas",
+  "body": "Labas rytas. Reikia betono C30/37, 1,4m3, bandom S2 daryti. Pasiimsime patys su savivarčiu.\n\nDuokite žinot kada galėsiu važiuot.\n\nA. A.\nStatybos vadovas\nUAB „INSTITA“",
+  "attachments": []
+ },
+ {
+  "id": "L02",
+  "received": "2026-11-10T15:11",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Ewcon“",
+  "contact": {
+   "name": "K. Ž.",
+   "role": "statybos darbų vadovas",
+   "tel": "+370 603 •• •••",
+   "mail": "k•••@ewcon.lt"
+  },
+  "subject": "Tiltas per Dubysą. Betono poreikis",
+  "body": "Sveiki,\nReikalinga 11.11d (trečiadienis) pirmos dienos pusėje tilto tarpinės atramos paruošiamam sluoksniui įrengti:\nBetonas    C30/37   S1           2,2 m3              atvežam su savivarčiu\n\nPagarbiai,\nK. Ž.\nStatybos darbų vadovas",
+  "attachments": []
+ },
+ {
+  "id": "L03",
+  "received": "2026-11-10T14:40",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Genusta“",
+  "contact": {
+   "name": "N. Č.",
+   "role": "projektų vadovas",
+   "tel": "+370 640 •• •••",
+   "mail": "n•••@genusta.lt"
+  },
+  "subject": "RE: Betono rezervacija 09-11 26 siurblinė",
+  "body": "Sveiki,\n\nRašau laišką su rezervacijos atšaukimu, gavome žinių, kad nebus galimybių tiekti iš vietinio mazgo.\n\nPagarbiai / Best Regards,\nN. Č.\nProjektų vadovas",
+  "attachments": []
+ },
+ {
+  "id": "L04",
+  "received": "2026-11-10T14:03",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Viadukas“",
+  "contact": {
+   "name": "A. S.",
+   "role": "meistras",
+   "tel": "+370 644 •• •••",
+   "mail": "a•••@viadukas.lt"
+  },
+  "subject": "46 savaitė 11.12-13d.",
+  "body": "(laiške tik parašas, užsakymas prisegtame Excel)\n\nA. S.\nMEISTRAS\nUAB „Viadukas“",
+  "attachments": [
+   {
+    "name": "VIADUKAS 46 savaitė Triukšmo užtvara poliai.xlsx",
+    "text": "OBJEKTAS: Triukšmo užtvaros (VII ruožas) (89Q9+J8J Runeikiai, Kėdainių r.)\nRangovas | Konstrukcija | Betono klasė | Kiekis m3 | Data | Pradžia | Betonvežių | Siurblys | Pastabos | Kontaktas\nVIADUKAS | Triukšmo užtvaros, poliai | C30/37-XC2 | 18 | 11.12 | 8.00 | 2 | PUMI28 | Siurblys reikalingas visai dienai | A. S. +370 644 •• •••\nVIADUKAS | Triukšmo užtvaros, poliai | C30/37-XC2 | 18 | 11.13 | 8.00 | 2 | PUMI28 | Siurblys reikalingas visai dienai | A. S. +370 644 •• •••"
+   }
+  ]
+ },
+ {
+  "id": "L05",
+  "received": "2026-11-10T09:36",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Litrental“ (Eurovia Lietuva)",
+  "contact": {
+   "name": "L. G.",
+   "role": "",
+   "tel": "+370 6•• •• •••",
+   "mail": "l•••@litrental.lt"
+  },
+  "subject": "Fwd: Betono užsakymas 46 savaitė",
+  "body": "Laba diena, siunčiu užsakymą ketvirtadieniui.",
+  "attachments": [
+   {
+    "name": "Betono užsakymo forma 46 sav (002).xlsx",
+    "text": "Rangovas | Konstrukcijos tipas | Pavadinimas | Betono klasė | Kiekis m3 | Data | Pradžia | Betonvežių | Siurblys | Intervalas | Kontaktas\nAB „Eurovia Lietuva“ | Latako dugno betonavimas | Latako dugno betonavimas | C20/25 | 90 | 11-12 d. | 08:00 val. | 3 | 1 vnt, siurblio ilgis 28 m | 30 min. | G. Š., 8 6•• •• •••"
+   }
+  ]
+ },
+ {
+  "id": "L06",
+  "received": "2026-11-09T13:45",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Genusta“",
+  "contact": {
+   "name": "N. Č.",
+   "role": "projektų vadovas",
+   "tel": "+370 640 •• •••",
+   "mail": "n•••@genusta.lt"
+  },
+  "subject": "Betono rezervacija 09-11 26 siurblinė",
+  "body": "Sveiki,\n\nSiunčiu betono rezervaciją 26 siurblinei, 2 įvažiavimas Lapinge.\n\nPrieš pasiskambinti +370 640 •• •••\n\nData | Laikas | Betonas | Kiekis | Pastabos\n11-11 | 13:00 | C30/37 XC3 | 25m³ | Su kristalais\n\nPagarbiai / Best Regards,\nN. Č.",
+  "attachments": []
+ },
+ {
+  "id": "L07",
+  "received": "2026-11-09T10:06",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Alginsta“",
+  "contact": {
+   "name": "E.",
+   "role": "",
+   "tel": "",
+   "mail": "e•••@alginsta.lt"
+  },
+  "subject": "Okainiai",
+  "body": "Sveiki, betonas 11.09d.; pumikas C25/30XC3 F150 3,5-4m3, privežimas už 40min, betonas C30/37 XC4XA1W6F150 6-7m3",
+  "attachments": []
+ },
+ {
+  "id": "L08",
+  "received": "2026-11-06T14:05",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Tilsta“",
+  "contact": {
+   "name": "M. M.",
+   "role": "projektų vadovas",
+   "tel": "+370 698 •• •••",
+   "mail": "m•••@tilsta.lt"
+  },
+  "subject": "RE: betono užsakymas 45 sav.",
+  "body": "patikslinu\n\nPagarbiai,\nUAB „Tilsta“ projektų vadovas\nM. M.\n\nFrom: M. M. | Tilsta  Sent: Friday, November 6, 2026 1:57 PM\nNeprisegiau\n\nFrom: M. M. | Tilsta  Sent: Friday, November 6, 2026 1:53 PM\nPapildau kitos savaitės planą – vienas pilietis nepateikė kiekių.\n\nFrom: A. G. | Tilsta  Sent: Friday, November 6, 2026 8:00 AM\nBetono užsakymas 46 savaitė",
+  "attachments": [
+   {
+    "name": "Betono užsakymo paraiška Savaitinė 2026-46_ savaitė.xlsx",
+    "text": "Savaitinė betono užsakymo paraiška. UAB „TILSTA“ betono užsakymas Rail Baltica DPS1B. Paraiškos savaitė 46.\nData | Krovimo laikas | Statinys | Statinio kodas | Koordinatės | Darbų vadovas | Konstrukcija | Klasė | Aplinka | Slankumas | Priedai | Kiekis m3 | Siurblys | Betonvežių | Trukmė | Pastabos\n2026-11-09 | 08:00 | BR6587 pėsčiųjų tunelis | T024.03-25 | maps.app.goo.gl/f5q7Wq4jwUPj5Pcf9 | I. S. | Sienos | C35/45 | XC4/XD3/XF4 | S3 | - | 64 | 36m siurblys nuo 7:30 | 3 | 5 val | Turėti prailginimo šlangas plonesnes, tikrinti slankumą ir oro kiekį\n2026-11-09 | 14:00 | BR6187 | T024.02-25 | 55.042722, 24.228036 | J. Č. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 70 | | 2 | 5 h | data ir laiką tikslinsime kitą savaitę\n2026-11-09 | 09:00 | BR6193 | T024.14-25 | 54.987814, 24.134488 | V. P. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 60 | | | 4 h | krovimo laikas gali keistis, iš vakaro patikslinsime\n2026-11-10 | 11:00 | BR6193 | T024.14-25 | 54.987814, 24.134488 | V. P. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 60 | | | 4 h | krovimo laikas gali keistis\n2026-11-11 | 08:00 | BR6187 | T024.02-25 | 55.042722, 24.228036 | J. Č. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 70 | | 2 | 5 h | data ir laiką tikslinsime\n2026-11-12 | 13:00 | BR 6193 | T024.14-25 | maps.app.goo.gl/anurH7aMCrGkPTJk8 | V. A. | Užaklinimo betonas | C16/20 | | S4 | | 10 | | 1 | 3 h | Išorai\n2026-11-12 | 12:00 | BR6187 | T024.02-25 | 55.042722, 24.228036 | J. Č. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 70 | | 2 | 5 h | data ir laiką tikslinsime\n2026-11-12 | 12:00 | BR6193 | T024.14-25 | 54.987814, 24.134488 | V. P. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 60 | | | 4 h | krovimo laikas gali keistis\n2026-11-13 | 12:00 | BR6193 | T024.14-25 | 54.987814, 24.134488 | V. P. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 60 | | | 4 h | krovimo laikas gali keistis\n2026-11-13 | 13:00 | BR6187 | T024.02-25 | 55.042722, 24.228036 | J. Č. | Gręžtiniai poliai | C30/37 | XC2 | S4 | Lėtiklis 4h | 70 | | 2 | 5 h | data ir laiką tikslinsime\n2026-11-13 | 09:00 | BR6587 pėsčiųjų tunelis | T024.03-25 | maps.app.goo.gl/f5q7Wq4jwUPj5Pcf9 | I. S. | Rampų pamatai | C30/37 | XC2 | S3 | - | 57 | 28-36m siurblys nuo 8:30 | 3 | 4 val | Tikrinti slankumą S3 ir oro kiekį\nSąskaitose būtina nurodyti statinio kodą."
+   }
+  ]
+ },
+ {
+  "id": "L09",
+  "received": "2026-11-06T12:36",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „ITR Grupė“",
+  "contact": {
+   "name": "E. Š.",
+   "role": "statybų vadovo asistentė",
+   "tel": "",
+   "mail": "s•••@itrgrupe.lt"
+  },
+  "subject": "Betono užsakymas – Rheinmetall Kemėrų k. 3, 16 pastatas",
+  "body": "Laba diena, Justina,\n\nkaip kalbėjome telefonu, siunčiame informaciją dėl betono ir siurblio rezervacijos 16 pastato grindų betonavimui.\n\nBetonas\n– Klasė: C30/37 XC3, Dmax16, CEM II/A-LL 42.5 R\n– Slankumas: S3\n– Kiekis: ~45 m³\n\nData ir laikas\n– 2026.11.09, pradžia 13:00\n\nSiurblys\n– Reikalingas siurblys M36\n\nFibra\n– Durus FF32, 3 kg/m³ – iš viso ~138 kg, įmaišoma mazge\n\nPrašome patvirtinti rezervaciją ir nurodyti, kokiu intervalu galėsite tiekti betonvežius.\n\nPagarbiai,\nE. Š.\nStatybų vadovo asistentė\nUAB „ITR Grupė“",
+  "attachments": []
+ },
+ {
+  "id": "L10",
+  "received": "2026-11-06T11:29",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Betena“",
+  "contact": {
+   "name": "R. V.",
+   "role": "",
+   "tel": "+370 669 •• •••",
+   "mail": "r•••@betena.lt"
+  },
+  "subject": "Betonas",
+  "body": "Sveiki, 11.09d 14 val. betonas C35/45XC2XA3W8-5,5m3 su pumiku. Šiandien nebetonuosim.\n\nR.",
+  "attachments": []
+ },
+ {
+  "id": "L11",
+  "received": "2026-11-06T09:24",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Tiny Solutions“ (BetonPro kūrėjai)",
+  "contact": {
+   "name": "T. S.",
+   "role": "",
+   "tel": "",
+   "mail": "i•••@tinysolutions.eu"
+  },
+  "subject": "Re[2]: dėl Tatomos užsakymo 2026-11-04",
+  "body": "ar dabar gerai?\n\nOn 2026-11-06 09:00, „Justina K.“ wrote:\nTomai, galima sutvarkyt tą užsakymą? Klientui turiu greit nusiųst važtaraščius.\n\nFrom: M. P.\nVakar dozavom 3.3 kg/m3 SikaControl 50 priedo, bet važtaraštyje 0 rodo. Ar galime patvarkyti visus važtaraščius?",
+  "attachments": []
+ },
+ {
+  "id": "L12",
+  "received": "2026-11-06T07:59",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Tilsta“",
+  "contact": {
+   "name": "A. G.",
+   "role": "apskaitininkė",
+   "tel": "+370 602 •• •••",
+   "mail": "a•••@tilsta.lt"
+  },
+  "subject": "RE: betono užsakymas 45 sav.",
+  "body": "Betono užsakymas 46 savaitė\n\n(Ankstesnė versija – vėliau M. M. atsiuntė patikslintą paraišką su tuo pačiu priedu.)",
+  "attachments": [
+   {
+    "name": "Betono užsakymo paraiška Savaitinė 2026-46_ savaitė.xlsx",
+    "text": "(ankstesnė tos pačios paraiškos versija – žr. 2026-11-06 14:05 laišką „patikslinu“)"
+   }
+  ]
+ },
+ {
+  "id": "L13",
+  "received": "2026-11-05T15:46",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Projektana“",
+  "contact": {
+   "name": "M. U.",
+   "role": "statybos darbų vadovas",
+   "tel": "+370 633 •• •••",
+   "mail": "m•••@projektana.lt"
+  },
+  "subject": "Zujų g 3, Zujai",
+  "body": "Sveiki,\nSiunčiu betono tiekimo grafiką ateinančiai savaitei Zujų k., objektui.\nRaudonai pažymėtas betonas C37/30.\n\nPagarbiai\nM. U.\nStatybos darbų vadovas\nUAB „Projektana“",
+  "attachments": [
+   {
+    "name": "Betono tiekimo grafikas Zujų g., Zujai 11,09-11,13.xlsx",
+    "text": "Betono tiekimo grafikas. Tiekėjas: UAB HC betonas. Objektas: Zujų g., Zujų k., Vidiškių sen., Ukmergės raj. Darbų vadovas: M. U. +370 633 •• •••\nLapkričio 9 d. – Betonas C25/30 XC2, S4, M28 siurblys: 7,5 m3 × 7 betonvežiai = 52,5 m3; laikai 07:30, 08:00, 09:45, 10:30, 11:30, 12:30, 15:00 (C30/37 XC2 eilutė pažymėta, kiekis nenurodytas)\nLapkričio 10 d. – Betonas C25/30, S4: 7,5 m3 × 7 = 52,5 m3; laikai 07:30, 08:00, 08:30, 10:30, 11:30, 13:20, 15:00\nLapkričio 11 d. – Betonas C25/30 XC2, S4: 7,5 m3 × 7 = 52,5 m3; laikai 07:30, 08:00, 09:45, 10:30, 12:30, 13:20, 15:00\nLapkričio 12 d. – Betonas C25/30 XC2, S4: 7,5 m3 × 6 = 45 m3; laikai 07:30, 08:30, 09:45, 11:30, 12:30, 15:00\nLapkričio 13 d. – Betonas C25/30 XC2, S4: 7,5 m3 × 6 = 45 m3; laikai 07:30, 08:30, 09:45, 11:30, 12:30, 13:20\n(Faile taip pat yra senų dienų lentelės – birželio, liepos, rugpjūčio, spalio.)"
+   }
+  ]
+ },
+ {
+  "id": "L14",
+  "received": "2026-11-05T13:36",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Ewcon“",
+  "contact": {
+   "name": "L. A.",
+   "role": "darbų vadovas",
+   "tel": "+370 653 •• •••",
+   "mail": "l•••@ewcon.lt"
+  },
+  "subject": "Betono užsakymas",
+  "body": "Sveiki, siunčiu betono užsakymą.\n\nPagarbiai,\nL. A.\nDarbų vadovas, UAB EWCON",
+  "attachments": [
+   {
+    "name": "11-09 Betono užsakymas.xlsx",
+    "text": "Subrangovas | Konstrukcija | Betono klasė | Kiekis m3 | Data | Pradžia | Betonvežių | Siurblys | Kontaktas\nEWCON | Išlyginamasis sluoksnis | Ecocrete LST EN 206 C16/20-X0-CI 0,20-Dmax16-S2 | 2 | 2026-11-09 | 15:00 | 1 | 1 vnt. siurblys arba pumikas | L. A. +370 653 •• •••"
+   }
+  ]
+ },
+ {
+  "id": "L15",
+  "received": "2026-11-05T12:05",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „DR Verslas“",
+  "contact": {
+   "name": "D. K.",
+   "role": "",
+   "tel": "",
+   "mail": "d•••@drverslas.lt"
+  },
+  "subject": "FW: Betono kiekiai",
+  "body": "Laba diena,\n\nPrašau atsiųsti spalio deklaracijas.\n\nD.\n\nFrom: V. O. (Eurovia)\n...",
+  "attachments": []
+ },
+ {
+  "id": "L16",
+  "received": "2026-11-05T08:51",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Genusta“",
+  "contact": {
+   "name": "N. Č.",
+   "role": "projektų vadovas",
+   "tel": "+370 640 •• •••",
+   "mail": "n•••@genusta.lt"
+  },
+  "subject": "RE: Betono rezervacija",
+  "body": "Sveiki,\n\nReiktų padidinti kiekį iki 1,7m3\n\nKontaktinis asmuo pasiskambinti prieš atvažiuojant betonavimui:\n+370 625 •• ••• - M.\n\nPagarbiai / Best Regards,\nN. Č.",
+  "attachments": []
+ },
+ {
+  "id": "L17",
+  "received": "2026-11-04T15:28",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Betena“",
+  "contact": {
+   "name": "R. V.",
+   "role": "",
+   "tel": "+370 669 •• •••",
+   "mail": "r•••@betena.lt"
+  },
+  "subject": "Betonas",
+  "body": "Sveiki, siunčiu paraišką.\n\nR.",
+  "attachments": [
+   {
+    "name": "Pavydzys.xlsx",
+    "text": "Betono užsakymai\nKonstrukcija | Trukmė | Betono klasė | Kiekis m3 | Data | Pradžia | Betonvežių | Siurblys | Intervalas | Kontaktas\nSienutės | 2 val. | C35/45 XC2XA3W8 | 4,5 | 11.06 | 13 val. | 1 | pumikas | | R. V. 8 669 •• •••\nKanalų padas | 2 val. | C35/45 XC2XA3W8 | 2,5 | 11.09 | 13 val. | 1 | 1 pumikas, 31 m | | R. V.\nTunelio denginys | 2 val. | C30/37 XC1 | 6 | 11.10 | 13 val. | 1 | 1 pumikas, 31 m | | R. V.\nTunelio denginys | 3 val. | C30/37 XC1 | 14 | 11.05 | 13 val. | 2 | 1 pumikas, 31 m | 20 min | R. V."
+   }
+  ]
+ },
+ {
+  "id": "L18",
+  "received": "2026-11-04T15:23",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "Fizinis asmuo (MB „Melra“)",
+  "contact": {
+   "name": "T. Č.",
+   "role": "",
+   "tel": "+370 643 •• •••",
+   "mail": "t•••@gmail.com"
+  },
+  "subject": "Fwd: Užsakymo patvirtinimas - 1357",
+  "body": "---------- Forwarded message ---------\nNuo: Alina Veber (C3 Betonas)\nDate: 2026-11-04 15:21\nSubject: Užsakymo patvirtinimas - 1357\n\nSveiki, Ačiū, kad naudojatės mūsų paslaugomis. Norėtume patvirtinti Jūsų pateiktą užsakymą Nr. KLMB1357, gauta 2026-11-04.\nUžsakovas: MB Melra, [adresas užkoduotas]\nGamyba atliekama: UAB C3 Betonas, Baisogala\nPristatymo adresas: [privatus adresas užkoduotas]\nPristatymo į objektą laikas: 2026-11-05 / 09:00\nPristatymo intervalas: Savo transportu\nUžsakytos p... (tekstas nukirptas)",
+  "attachments": [
+   {
+    "name": "Tiekimo_salygos.pdf",
+    "text": "(PDF – tiekimo sąlygos, turinys nenuskaitytas)"
+   }
+  ]
+ },
+ {
+  "id": "L19",
+  "received": "2026-11-04T15:01",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Betena“",
+  "contact": {
+   "name": "R. V.",
+   "role": "",
+   "tel": "+370 669 •• •••",
+   "mail": "r•••@betena.lt"
+  },
+  "subject": "Betonas",
+  "body": "Sveiki, 11.05d 14val betonas C30/37 XC4XF3W8 su kristalais-39m3, su siurbliu.\n\nR.",
+  "attachments": []
+ },
+ {
+  "id": "L20",
+  "received": "2026-11-04T14:14",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Genusta“",
+  "contact": {
+   "name": "N. Č.",
+   "role": "projektų vadovas",
+   "tel": "+370 640 •• •••",
+   "mail": "n•••@genusta.lt"
+  },
+  "subject": "RE: Betono rezervacija",
+  "body": "Sveiki,\n\nSiunčiu betono rezervaciją, betonavimas su siurbliu\n\nData | Laikas | Betonas | Kiekis | Pastabos\n11-05 | 14:00 | C30/37 XC4 XF1 | 1.5m³ | 3 įvažiavimas, 16.1 SDG ūkis\n\nPagarbiai / Best Regards,\nN. Č.",
+  "attachments": []
+ },
+ {
+  "id": "L21",
+  "received": "2026-11-04T12:56",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Viadukas“",
+  "contact": {
+   "name": "A. S.",
+   "role": "meistras",
+   "tel": "+370 644 •• •••",
+   "mail": "a•••@viadukas.lt"
+  },
+  "subject": "Užsakymo pakeitimai",
+  "body": "Sveiki, anksčiau siųstas užsakymas koreguojamas, polių betonavimas vyks nuo 11.06d.\n\nA. S.\nMEISTRAS",
+  "attachments": [
+   {
+    "name": "VIADUKAS 45 savaitė Triukšmo užtvara poliai.xlsx",
+    "text": "OBJEKTAS: Triukšmo užtvaros (VII ruožas) (89Q9+J8J Runeikiai, Kėdainių r.)\nRangovas | Konstrukcija | Betono klasė | Kiekis m3 | Data | Pradžia | Betonvežių | Siurblys | Pastabos\nVIADUKAS | Poliai | C30/37-XC2 | 16 | 11.06 | 8.00 | 2 | PUMI28 | Siurblys reikalingas visai dienai\nVIADUKAS | Poliai | C30/37-XC2 | 16 | 11.09 | 8.00 | 2 | PUMI28 | Siurblys reikalingas visai dienai\nVIADUKAS | Poliai | C30/37-XC2 | 16 | 11.10 | 8.00 | 2 | PUMI28 | Siurblys reikalingas visai dienai\nVIADUKAS | Poliai | C30/37-XC2 | 16 | 11.11 | 8.00 | 2 | PUMI28 | Siurblys reikalingas visai dienai"
+   }
+  ]
+ },
+ {
+  "id": "L22",
+  "received": "2026-11-04T12:56",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Ewcon“",
+  "contact": {
+   "name": "L. M.",
+   "role": "",
+   "tel": "",
+   "mail": "l•••@ewcon.lt"
+  },
+  "subject": "Tiltas per Šušvę",
+  "body": "Sveiki,\nPlanuojame 11.05 d (ketvirtadienį) betonuoti tilto deformacinį pjūvį. 13:00 laukiame kriaušės.\nBetonas    C35/45 XC4-XD3-XF4-W6-F200     S3 klasės --- 4,9 m3, tiesiai iš kriaušės, tegul įsimeta latako.\n\nPagarbiai,\nL. M.",
+  "attachments": []
+ },
+ {
+  "id": "L23",
+  "received": "2026-11-04T12:17",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Ewcon“",
+  "contact": {
+   "name": "L. A.",
+   "role": "darbų vadovas",
+   "tel": "+370 653 •• •••",
+   "mail": "l•••@ewcon.lt"
+  },
+  "subject": "Ats.: Betono užsakymas 11-04",
+  "body": "Patikslinu kiekį, viso bus 2 m3. Slankumas kuo tirštesnis.\n\nPagarbiai,\nL. A.\nDarbų vadovas, UAB EWCON\n\nIš: L. A. (ankstesnis laiškas – užsakymas 11-04)",
+  "attachments": []
+ },
+ {
+  "id": "L24",
+  "received": "2026-11-04T09:12",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Ewcon“",
+  "contact": {
+   "name": "K. Ž.",
+   "role": "statybos darbų vadovas",
+   "tel": "+370 603 •• •••",
+   "mail": "k•••@ewcon.lt"
+  },
+  "subject": "Tiltas per Šušvę. Betono užsakymas",
+  "body": "Sveiki,\nPlanuojame 11.09 d (pirmadienis) betonuoti tilto išlyginamąjį sluoksnį su 24 m pumiku. Pirma dienos pusė.\nBetonas    C25/30   XF2  (smulkiagrūdis)      35 m3\n\nPagarbiai,\nK. Ž.\nStatybos darbų vadovas",
+  "attachments": []
+ },
+ {
+  "id": "L25",
+  "received": "2026-11-03T15:39",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „UB Solar“",
+  "contact": {
+   "name": "D. P.",
+   "role": "",
+   "tel": "",
+   "mail": "d•••@ubsolar.com"
+  },
+  "subject": "Re: Jonava betonas",
+  "body": "Labas, iškart tada rašau: po vežimo reikės šito C25/30 XC2 kubikų testo 7 dienų ir 28 dienų.\nO C30/37 reikės kubiko testo po 28d.\n\nFrom: D. P.  Sent: Tuesday, November 3, 2026 8:28 AM ...",
+  "attachments": []
+ },
+ {
+  "id": "L26",
+  "received": "2026-11-03T13:49",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Viadukas“",
+  "contact": {
+   "name": "R. B.",
+   "role": "darbų vadovas",
+   "tel": "+370 631 •• •••",
+   "mail": "r•••@viadukas.lt"
+  },
+  "subject": "UAB „Viadukas“. Betono užsakymas 11.05d.",
+  "body": "Sveiki.\n\nR. B.\nDARBŲ VADOVAS",
+  "attachments": [
+   {
+    "name": "UAB VIADUKAS. Betono užsakymas 45 sav. (BR6737).xlsx",
+    "text": "OBJEKTAS: BR6737 Gyvūnų požeminis praėjimas (89Q9+J8J Runeikiai, Kėdainių r., RAIL BALTICA)\nRangovas | Statinio Nr. | Konstrukcija | Betono klasė | Kiekis m3 | Data | Pradžia | Betonvežių | Siurblys | Kontaktas\nVIADUKAS | BR6737 | Balasto sienelės | C35/45 XC4 XD3 XF4 S4 | 3 | 2026-11-05 | 12.00 | 1 | PUMI 32m. | R. B. +370 631 •• •••"
+   }
+  ]
+ },
+ {
+  "id": "L27",
+  "received": "2026-11-03T13:16",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Instita“",
+  "contact": {
+   "name": "A. A.",
+   "role": "statybos vadovas",
+   "tel": "+370 636 •• •••",
+   "mail": "a.a•••@instita.com"
+  },
+  "subject": "RE: Užsakymas",
+  "body": "Gerai, ačiū.\n\nA. A.\nStatybos vadovas, UAB „INSTITA“\n\nFrom: Užsakymai <uzsakymai@c3betonas.lt>  Sent: Tuesday, November 3, 2026 ...",
+  "attachments": []
+ },
+ {
+  "id": "L28",
+  "received": "2026-11-03T12:57",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "PST Group AB",
+  "contact": {
+   "name": "G. V.",
+   "role": "statybos vadovas",
+   "tel": "+370 620 •• •••",
+   "mail": "g•••@pst.lt"
+  },
+  "subject": "RE:",
+  "body": "Prašau atsiųsti visas 2026-10-29 pristatyto betono deklaracijas.\n\nG. V.\nStatybos vadovas, PST Group AB",
+  "attachments": []
+ },
+ {
+  "id": "L29",
+  "received": "2026-11-03T12:53",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "PST Group AB",
+  "contact": {
+   "name": "G. V.",
+   "role": "statybos vadovas",
+   "tel": "+370 620 •• •••",
+   "mail": "g•••@pst.lt"
+  },
+  "subject": "(be temos)",
+  "body": "Sveiki. Betono užsakymas. 65m³\n\nData: 2026-11-09\nLaikas: nuo 8:00 val.\nAdresas: Reino g. 1, Kemėrų k., Baisogalos sen., įvažiavimas per 1 vartus.\nBetono klasė – C30/37 – XC3.\nFibros dozavimas – 20 kg / Betono kiekis – 65m³. (fibros pristatymas 2026.10.26)\nMikrofibra 0,6 kg į 1 m³\nBetono tiekimas – su betono siurbliu.\nReikalingas bendras žarnų ilgis – apie 40\n\nG. V.\nStatybos vadovas, PST Group AB\n(kopija: MB „Stiprios grindys“)",
+  "attachments": []
+ },
+ {
+  "id": "L30",
+  "received": "2026-11-03T12:27",
+  "channel": "email",
+  "box": "uzsakymai@",
+  "company": "UAB „Instita“",
+  "contact": {
+   "name": "A. A.",
+   "role": "statybos vadovas",
+   "tel": "+370 636 •• •••",
+   "mail": "a.a•••@instita.com"
+  },
+  "subject": "Užsakymas",
+  "body": "Laba diena. Reikia betono C20/25, 0,5m3. Pasiimsime patys su savivarčiu iš Stašėnų.\n\nA. A.\nStatybos vadovas, UAB „INSTITA“",
+  "attachments": []
+ }
+]

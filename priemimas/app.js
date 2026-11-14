@@ -213,7 +213,7 @@ function sysPrompt() {
     'Savybes rašyk tik tas, kurias nurodė klientas. Neprisigalvok klasių. „C37/30“ greičiausiai reiškia C30/37 – pažymėk pastabose.',
     'Kiekvienai dienai/konstrukcijai – atskiras užsakymas. Savaitės grafikui – visi įrašai. Ankstesnės laiško versijos citatos (From:/Sent:) – tik kontekstas.',
     'Jei laiške tik parašas, o užsakymas priede – imk iš priedo. Jei priedo nėra arba neaišku – tipas „klausimas“.',
-    'Laiškų vardai ir kontaktai užkoduoti (pvz. „A. S.“, „+370 6•• •• •••“) – taip ir palik.',
+    (window.BPDB && window.BPDB.letters ? 'Laiškai su tikrais kontaktais – kontaktinius asmenis ir telefonus perrašyk tiksliai.' : 'Laiškų vardai ir kontaktai užkoduoti (pvz. „A. S.“, „+370 6•• •• •••“) – taip ir palik.'),
     'Jei pateikta KLIENTO ISTORIJA iš BetonPro – naudok ją mazgui, objekto adresui ir pristatymo būdui nustatyti (tam pačiam objektui klientas paprastai kraunasi tame pačiame mazge). Betono savybes vis tiek imk tik iš laiško; istorijos receptą minėk tik pastabose.',
     'Rašyk lietuviškai, dalykiškai.'
   ].join('\n');
@@ -381,7 +381,7 @@ function filtered() {
 function renderLetters() { renderList(); renderDetail(); renderSide(); }
 function renderList() {
   const n = LETTERS.length, an = LETTERS.filter((L) => S.res[L.id] && S.res[L.id].tipas).length, ap = Object.keys(S.appr).length, rj = Object.keys(S.rej).length;
-  $('#strip').innerHTML = [[n, 'Laiškų teste (30 paskutinių)'], [an, 'Perskaitė ' + BP + ' (AI)'], [n - ap - rj, 'Laukia jūsų'], [ap, 'Patvirtinta · ' + Object.values(S.appr).reduce((a, x) => a + (x.orders || []).length, 0) + ' užs.'], [evC('ok') + ' / ' + evC('bad'), 'Įvertinta ✓ / ✗']].map((x, i) => `<div><span class="n">${x[0]}</span><span class="l">${String(i + 1).padStart(2, '0')} · ${x[1]}</span></div>`).join('');
+  $('#strip').innerHTML = [[n, 'Laiškų teste (30 paskutinių' + (window.BPDB && window.BPDB.letters ? ', su kontaktais)' : ')')], [an, 'Perskaitė ' + BP + ' (AI)'], [n - ap - rj, 'Laukia jūsų'], [ap, 'Patvirtinta · ' + Object.values(S.appr).reduce((a, x) => a + (x.orders || []).length, 0) + ' užs.'], [evC('ok') + ' / ' + evC('bad'), 'Įvertinta ✓ / ✗']].map((x, i) => `<div><span class="n">${x[0]}</span><span class="l">${String(i + 1).padStart(2, '0')} · ${x[1]}</span></div>`).join('');
   const F = [['all', 'Visi'], ['todo', 'Laukia'], ['none', 'Neanalizuoti'], ['orders', 'Užsakymai'], ['done', 'Patvirtinti'], ['bad', '✗ Blogai'], ['unev', 'Neįvertinti']];
   $('#filters').innerHTML = F.map(([k, l]) => `<button type="button" class="flt" data-f="${k}" aria-pressed="${S.filter === k}">${l}</button>`).join('') +
     `<button type="button" class="flt" id="runAll" ${key() ? '' : 'disabled'} title="Perskaityti visus neanalizuotus laiškus su AI">${BP} Analizuoti visus</button>`;
@@ -633,9 +633,9 @@ function dbSettingsHTML() {
     <div class="note">Užsakymų istorija, kainos, klientų kortelės ir tikras dienos planas imami iš privačios GitHub saugyklos. Reikia GitHub rakto, kuris leidžia tik skaityti šią saugyklą. Raktas saugomas tik šioje naršyklėje ir siunčiamas tik į api.github.com.<br><b>Kaip gauti:</b> github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: <i>Only select repositories</i> → betonpro-duomenys. Permissions → Repository permissions → Contents: <i>Read-only</i>.</div>
     <div class="set-grid"><div class="fld"><label for="ghk">GitHub raktas</label><input id="ghk" type="password" autocomplete="off" placeholder="github_pat_…" value="${t ? '••••••••' + esc(t.slice(-4)) : ''}"></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-dark" id="saveGh">Išsaugoti ir įkelti</button><button type="button" class="btn" id="reloadDb" ${t ? '' : 'disabled'}>Įkelti iš naujo</button><button type="button" class="btn btn-ghost" id="delGh" ${t ? '' : 'disabled'}>Ištrinti raktą</button></div>
-    ${st.err ? `<div class="err">${esc(st.err)}</div>` : ''}${st.ok ? `<div class="okbox">Įkelta ${esc(st.at.slice(11, 16))}: ${st.n.uzsakymai.toLocaleString('lt')} užsakymų (${st.n.vezimai.toLocaleString('lt')} reisų), ${st.n.saskaitu_eilutes.toLocaleString('lt')} sąskaitų eilučių, ${st.n.klientai} klientų.</div>` : ''}</div></div>`;
+    ${st.err ? `<div class="err">${esc(st.err)}</div>` : ''}${st.ok ? `<div class="okbox">Įkelta ${esc(st.at.slice(11, 16))}: ${st.n.uzsakymai.toLocaleString('lt')} užsakymų (${st.n.vezimai.toLocaleString('lt')} reisų), ${st.n.saskaitu_eilutes.toLocaleString('lt')} sąskaitų eilučių, ${st.n.klientai} klientų${st.n.laiskai ? ', ' + st.n.laiskai + ' laiškų su kontaktais (P01–P' + String(st.n.laiskai).padStart(2, '0') + ')' : ''}.</div>` : ''}</div></div>`;
 }
-async function loadDb() { if (!window.BPDB.tok()) return; renderNav(); if (S.view === 'settings') renderSettings(); await window.BPDB.load(); renderAll(); if (window.BPDB.st.ok) toast('Duomenų bazė įkelta.'); else if (window.BPDB.st.err) toast('Duomenų bazės įkelti nepavyko.'); }
+async function loadDb() { if (!window.BPDB.tok()) return; renderNav(); if (S.view === 'settings') renderSettings(); await window.BPDB.load(); if (window.BPDB.letters) { LETTERS = window.BPDB.letters; if (!LETTERS.find((L) => L.id === S.sel)) S.sel = LETTERS[0].id; } renderAll(); if (window.BPDB.st.ok) toast('Duomenų bazė įkelta.'); else if (window.BPDB.st.err) toast('Duomenų bazės įkelti nepavyko.'); }
 /* ---------- veiksmai ---------- */
 function curOrder(t) { const sec = t.closest('section.order'); if (!sec) return null; const E = S.ed[S.sel]; return E && E.orders[Number(sec.dataset.i)]; }
 function approve() {

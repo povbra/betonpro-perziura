@@ -7,7 +7,7 @@
   const PLN = { 3: 'Panevėžys', 11: 'Runeikiai', 12: 'Vilnius', 13: 'Stašėnai', 14: 'Baisogala', 15: 'Šiauliai' };
   const LEGAL = new Set(['uab', 'ab', 'mb', 'iį', 'ii', 'všį', 'vsi', 'sia', 'ūb', 'ub', 'tūb', 'filialas', 'lietuvoje', 'as', 'a', 's', 'oü', 'ou']);
   const st = { ok: false, loading: false, err: null, at: null, n: {} };
-  let IDX = null;
+  let IDX = null, LETTERS = null;
 
   const tok = () => { try { return localStorage.getItem(LSG) || ''; } catch (e) { return ''; } };
   const setTok = (t) => { try { t ? localStorage.setItem(LSG, t) : localStorage.removeItem(LSG); } catch (e) {} };
@@ -74,10 +74,11 @@
     if (!tok()) { st.ok = false; st.err = null; return st; }
     st.loading = true; st.err = null;
     try {
-      const [V, Sx, K] = await Promise.all([get('vezimai.json'), get('saskaitu_eilutes.json'), get('klientai.json')]);
+      const [V, Sx, K, LT] = await Promise.all([get('vezimai.json'), get('saskaitu_eilutes.json'), get('klientai.json'), get('letters.json').catch(() => null)]);
+      LETTERS = Array.isArray(LT) && LT.length ? LT : null;
       IDX = build(V, Sx, K);
       st.ok = true; st.at = new Date().toISOString();
-      st.n = { vezimai: V.rows.length, uzsakymai: IDX.all.length, saskaitu_eilutes: Sx.rows.length, klientai: K.rows.length };
+      st.n = { laiskai: LETTERS ? LETTERS.length : 0, vezimai: V.rows.length, uzsakymai: IDX.all.length, saskaitu_eilutes: Sx.rows.length, klientai: K.rows.length };
     } catch (e) { st.ok = false; st.err = String(e.message || e); IDX = null; }
     st.loading = false; return st;
   }
@@ -137,5 +138,5 @@
   }
   function dayInfo(date) { const os = IDX ? (IDX.byDate.get(date) || []).filter((o) => o.plant) : []; const cars = {}; os.forEach((o) => { cars[o.plant] = cars[o.plant] || new Set(); o.trips.forEach((t) => t.car && cars[o.plant].add(t.car)); }); return { n: os.length, m3: os.reduce((s, o) => s + o.m3, 0), trips: os.reduce((s, o) => s + o.trips.length, 0), cars: Object.fromEntries(Object.entries(cars).map(([k, v]) => [k, v.size])) }; }
 
-  window.BPDB = { REPO, st, tok, setTok, load, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; } };
+  window.BPDB = { REPO, st, tok, setTok, load, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
 })();

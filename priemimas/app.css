@@ -149,3 +149,8 @@ a{color:var(--ink)}
 .evbar .ev-ok[aria-pressed="true"]{background:#1E7B4A;color:#fff;border-color:#1E7B4A}
 .evbar .ev-bad[aria-pressed="true"]{background:#B3261E;color:#fff;border-color:#B3261E}
 .evm{font-weight:700;font-size:13px;padding:0 4px}.evm.ok{color:#1E7B4A}.evm.bad{color:#B3261E}
+.dbc{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 18px;background:#F7F8FA;border-bottom:1px solid #E6E8EB;font-size:13px}
+.dbc a.chip{text-decoration:none;color:inherit}
+.hist{display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-top:1px solid #E6E8EB;font-size:13px}
+.hist .tb{font-size:12px}
+#bgSrc{height:32px}

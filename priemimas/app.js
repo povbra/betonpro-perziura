@@ -33,8 +33,8 @@ let LETTERS = [], RECIPES = [], BASE = [];
 let S = null;
 const busy = {};
 
-const DEF = () => ({ v: 1, model: 'claude-sonnet-5-5', fleet: { R: 4, S: 7, B: 12 }, bg: true, res: {}, notes: {}, ed: {}, appr: {}, rej: {}, sel: null, filter: 'all', view: 'letters', loadDate: null, aiLog: [] });
-function load() { try { const x = JSON.parse(localStorage.getItem(LS) || 'null'); if (x && x.v === 1) return Object.assign(DEF(), x); } catch (e) {} return DEF(); }
+const DEF = () => ({ v: 1, model: 'claude-sonnet-5-5', fleet: { R: 4, S: 7, B: 12 }, bg: true, res: {}, notes: {}, ed: {}, appr: {}, rej: {}, sel: null, filter: 'all', view: 'letters', loadDate: null, aiLog: [], ev: {}, nd: {} });
+function load() { try { const x = JSON.parse(localStorage.getItem(LS) || 'null'); if (x && x.v === 1) { const o = Object.assign(DEF(), x); o.ev = o.ev || {}; o.nd = o.nd || {}; return o; } } catch (e) {} return DEF(); }
 function save() { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} }
 function key() { try { return localStorage.getItem(LSK) || ''; } catch (e) { return ''; } }
 function setKey(k) { try { k ? localStorage.setItem(LSK, k) : localStorage.removeItem(LSK); } catch (e) {} }
@@ -221,7 +221,7 @@ async function runAI(id) {
   const L = LETTERS.find((x) => x.id === id), k = key();
   if (!L) return;
   if (!k) { toast('Įveskite Claude API raktą skiltyje „Nustatymai ir AI“.'); return; }
-  busy[id] = true; renderAll();
+  busy[id] = true; keep(id === S.sel ? renderAll : renderList);
   const t0 = Date.now();
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -246,7 +246,21 @@ async function runAI(id) {
   } catch (e) {
     S.res[id] = Object.assign(S.res[id] || {}, { _err: String(e.message || e) });
   }
-  busy[id] = false; save(); renderAll();
+  busy[id] = false; save(); keep(id === S.sel ? renderAll : renderList);
+}
+function keep(fn) {
+  const a = document.activeElement; let g = null;
+  if (a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')) {
+    const ks = a.dataset.k ? [...document.querySelectorAll('[data-k="' + a.dataset.k + '"]')] : [];
+    g = { id: a.id && !a.id.startsWith('f-') ? a.id : null, k: a.dataset.k, i: ks.indexOf(a), v: a.value, s: null, e: null, cb: a.type === 'checkbox' };
+    try { g.s = a.selectionStart; g.e = a.selectionEnd; } catch (e) {}
+  }
+  fn();
+  if (!g || g.cb) return;
+  const b = g.id ? document.getElementById(g.id) : g.k ? document.querySelectorAll('[data-k="' + g.k + '"]')[g.i] : null;
+  if (!b || b.disabled) return;
+  b.value = g.v; b.focus();
+  try { if (g.s != null) b.setSelectionRange(g.s, g.e); } catch (e) {}
 }
 function fromAI(u, L) {
   return {
@@ -330,6 +344,11 @@ function renderNav() {
   const T = { letters: ['Užsakymai · Priėmimas', 'Gauti laiškai ir tvirtinimas'], load: ['Planavimas · Modeliavimas', 'Dienos apkrova'], recipes: ['Duomenys · BetonPro', 'Receptų duomenų bazė'], settings: ['Testas', 'Nustatymai ir AI'] }[S.view];
   $('#crumb').textContent = T[0]; $('#pageTitle').textContent = T[1];
 }
+function evC(w) { return Object.values(S.ev).filter((e) => w === 'ok' ? e.ok === true : e.ok === false).length; }
+function evalHTML(id) {
+  const e = S.ev[id] || {};
+  return `<div class="evbar"><span class="eb" style="color:#15171A;font-weight:600">Testo įvertinimas</span><button type="button" class="btn btn-sm ev-ok" data-ev="ok" aria-pressed="${e.ok === true}">✓ Gerai</button><button type="button" class="btn btn-sm ev-bad" data-ev="bad" aria-pressed="${e.ok === false}">✗ Blogai</button>${e.ok != null ? `<input id="evCom" type="text" value="${esc(e.c || '')}" placeholder="${e.ok === false ? 'Kas blogai? pvz.: ne tas receptas, turėjo būti pakeitimas' : 'Komentaras (nebūtina)'}">` : ''}</div>`;
+}
 function filtered() {
   return LETTERS.filter((L) => {
     const st = status(L.id).k, R = S.res[L.id];
@@ -337,13 +356,16 @@ function filtered() {
     if (S.filter === 'orders') return R && R.tipas && R.tipas !== 'ne_uzsakymas';
     if (S.filter === 'done') return st === 'ok';
     if (S.filter === 'none') return !R || !R.tipas;
+    if (S.filter === 'bad') return S.ev[L.id] && S.ev[L.id].ok === false;
+    if (S.filter === 'unev') return !S.ev[L.id] || S.ev[L.id].ok == null;
     return true;
   });
 }
-function renderLetters() {
+function renderLetters() { renderList(); renderDetail(); renderSide(); }
+function renderList() {
   const n = LETTERS.length, an = LETTERS.filter((L) => S.res[L.id] && S.res[L.id].tipas).length, ap = Object.keys(S.appr).length, rj = Object.keys(S.rej).length;
-  $('#strip').innerHTML = [[n, 'Laiškų teste (30 paskutinių)'], [an, 'Perskaitė ' + BP + ' (AI)'], [n - ap - rj, 'Laukia jūsų'], [ap, 'Patvirtinta · ' + Object.values(S.appr).reduce((a, x) => a + (x.orders || []).length, 0) + ' užs.']].map((x, i) => `<div><span class="n">${x[0]}</span><span class="l">${String(i + 1).padStart(2, '0')} · ${x[1]}</span></div>`).join('');
-  const F = [['all', 'Visi'], ['todo', 'Laukia'], ['none', 'Neanalizuoti'], ['orders', 'Užsakymai'], ['done', 'Patvirtinti']];
+  $('#strip').innerHTML = [[n, 'Laiškų teste (30 paskutinių)'], [an, 'Perskaitė ' + BP + ' (AI)'], [n - ap - rj, 'Laukia jūsų'], [ap, 'Patvirtinta · ' + Object.values(S.appr).reduce((a, x) => a + (x.orders || []).length, 0) + ' užs.'], [evC('ok') + ' / ' + evC('bad'), 'Įvertinta ✓ / ✗']].map((x, i) => `<div><span class="n">${x[0]}</span><span class="l">${String(i + 1).padStart(2, '0')} · ${x[1]}</span></div>`).join('');
+  const F = [['all', 'Visi'], ['todo', 'Laukia'], ['none', 'Neanalizuoti'], ['orders', 'Užsakymai'], ['done', 'Patvirtinti'], ['bad', '✗ Blogai'], ['unev', 'Neįvertinti']];
   $('#filters').innerHTML = F.map(([k, l]) => `<button type="button" class="flt" data-f="${k}" aria-pressed="${S.filter === k}">${l}</button>`).join('') +
     `<button type="button" class="flt" id="runAll" ${key() ? '' : 'disabled'} title="Perskaityti visus neanalizuotus laiškus su AI">${BP} Analizuoti visus</button>`;
   const list = filtered();
@@ -353,12 +375,11 @@ function renderLetters() {
     const tag = !ty ? '<span class="tag muted"><i style="border:1.5px solid #B4B9BF"></i>neanalizuota</span>' : R.tipas === 'naujas' ? '<span class="tag tag-new">+ NAUJAS UŽSAKYMAS</span>' : `<span class="tag"><i style="${ty.sq}"></i>${ty.lab}</span>`;
     return `<li><button type="button" class="li" data-id="${L.id}" aria-current="${S.sel === L.id}">
       <span class="li-top"><b>${esc(L.company)}</b><span class="li-time mono">${L.received.slice(5, 16).replace('T', ' ')}</span></span>
-      <span class="li-top">${tag}<span style="flex:1"></span><span class="st ${st.k ? 'st-' + st.k : ''}">${st.lab}</span></span>
+      <span class="li-top">${tag}<span style="flex:1"></span>${S.ev[L.id] && S.ev[L.id].ok != null ? `<span class="evm ${S.ev[L.id].ok ? 'ok' : 'bad'}" title="${esc(S.ev[L.id].c || '')}">${S.ev[L.id].ok ? '✓' : '✗'}</span>` : ''}<span class="st ${st.k ? 'st-' + st.k : ''}">${st.lab}</span></span>
       ${R && R.santrauka ? `<span class="li-gist mono">→ ${esc(R.santrauka)}</span>` : ''}
       <span class="li-snip">„${esc((L.subject || '') + ' – ' + L.body.replace(/\s+/g, ' ').slice(0, 160))}“</span>
     </button></li>`;
   }).join('') || '<li class="empty">Nėra laiškų pagal filtrą</li>';
-  renderDetail(); renderSide();
 }
 function fieldHTML(label, name, val, opts) {
   opts = opts || {};
@@ -380,14 +401,14 @@ function renderDetail() {
   if (!L) { el.innerHTML = '<div class="card empty">Pasirinkite laišką</div>'; return; }
   const R = S.res[L.id], E = S.ed[L.id], done = !!S.appr[L.id];
   const notes = S.notes[L.id] || [];
-  let h = `<article class="card"><div class="card-h"><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="eb muted">${esc(L.box)} · ${L.received.replace('T', ' ')} · ${esc(L.channel)}</span><b class="ar" style="font-size:20px">${esc(L.company)}</b><span style="color:#4A4F55">${esc(L.subject)}</span></span>
+  let h = evalHTML(L.id) + `<article class="card"><div class="card-h"><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="eb muted">${esc(L.box)} · ${L.received.replace('T', ' ')} · ${esc(L.channel)}</span><b class="ar" style="font-size:20px">${esc(L.company)}</b><span style="color:#4A4F55">${esc(L.subject)}</span></span>
     <span class="contacts"><span class="chip"><b>${esc(L.contact.name)}</b>${L.contact.role ? ' · ' + esc(L.contact.role) : ''}</span>${L.contact.tel ? `<span class="chip mono">${esc(L.contact.tel)}</span>` : ''}${L.contact.mail ? `<span class="chip mono">${esc(L.contact.mail)}</span>` : ''}</span></div>
     <div class="card-b"><div class="msg">${esc(L.body)}</div>
     ${(L.attachments || []).map((a) => `<details class="att" ${R ? '' : 'open'}><summary>📎 ${esc(a.name)}</summary><pre>${esc(a.text)}</pre></details>`).join('')}
     <div style="display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid #E6E8EB">
       <span style="display:flex;flex-direction:column;gap:2px"><label for="noteTa" class="eb" style="color:#15171A;font-weight:600">Papildoma informacija</label><span class="muted" style="font-size:12.5px">Ko nėra laiške: ką klientas sakė telefonu, vadybos pastabos. ${BP} perskaitys iš naujo.</span></span>
       ${notes.map((n, i) => `<div class="warn"><b class="badge">P${i + 1}</b> ${esc(n)}</div>`).join('')}
-      <textarea id="noteTa" rows="2" placeholder="pvz.: skambino – siurblio reikia 36 m, pradžia 9:00" ${done ? 'disabled' : ''}></textarea>
+      <textarea id="noteTa" rows="2" placeholder="pvz.: skambino – siurblio reikia 36 m, pradžia 9:00" ${done ? 'disabled' : ''}>${esc(S.nd[L.id] || '')}</textarea>
       <div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-dark" id="noteSend" ${done ? 'disabled' : ''}>Pateikti ${BP}</button></div>
     </div></div></article>`;
   if (busy[L.id]) h += `<div class="ai-band"><span class="spin"></span><span class="sum">${BP} skaito laišką ir priedus…</span></div>`;
@@ -601,9 +622,10 @@ function bind() {
     if (t.dataset.del != null) { S.ed[S.sel].orders.splice(Number(t.dataset.del), 1); save(); renderLetters(); return; }
     if (t.dataset.rcp) { const o = curOrder(t); if (o) { o.recipeId = Number(t.dataset.rcp); save(); renderLetters(); } return; }
     if (t.dataset.pick) { const [i, k] = t.dataset.pick.split(':').map(Number); S.ed[S.sel].orders[i].pick = k; save(); renderLetters(); return; }
-    if (t.id === 'noteSend') { const v = $('#noteTa').value.trim(); if (!v) return; (S.notes[S.sel] = S.notes[S.sel] || []).push(v); save(); if (key()) runAI(S.sel); else { toast('Pastaba išsaugota. AI neprijungtas – juodraštį koreguokite ranka.'); renderLetters(); } return; }
+    if (t.id === 'noteSend') { const v = $('#noteTa').value.trim(); if (!v) return; (S.notes[S.sel] = S.notes[S.sel] || []).push(v); delete S.nd[S.sel]; save(); if (key()) runAI(S.sel); else { toast('Pastaba išsaugota. AI neprijungtas – juodraštį koreguokite ranka.'); renderLetters(); } return; }
     if (t.id === 'replyReset' || t.id === 'replyReset2') { const E = S.ed[S.sel]; E.reply = null; E.replyBase = null; save(); renderSide(); return; }
     if (t.id === 'writeOwn') { const E = S.ed[S.sel]; E.reply = 'Laba diena,\n\n\n\n' + sig(LETTERS.find((x) => x.id === S.sel)); E.replyBase = ''; save(); renderSide(); return; }
+    if (t.dataset.ev) { const e = S.ev[S.sel] = S.ev[S.sel] || {}; const v = t.dataset.ev === 'ok'; e.ok = e.ok === v ? null : v; e.at = new Date().toISOString(); save(); renderList(); renderDetail(); if (e.ok === false) { const c = $('#evCom'); if (c) c.focus(); } return; }
     if (t.id === 'approve') { approve(); return; }
     if (t.id === 'undo') { delete S.appr[S.sel]; save(); renderAll(); return; }
     if (t.id === 'reject') { S.rej[S.sel] = true; save(); renderAll(); return; }
@@ -616,6 +638,8 @@ function bind() {
   document.addEventListener('input', (ev) => {
     const t = ev.target;
     if (t.id === 'replyTa') { const E = S.ed[S.sel]; if (E.reply == null) E.replyBase = genReply(S.sel); E.reply = t.value; save(); return; }
+    if (t.id === 'noteTa') { S.nd[S.sel] = t.value; save(); return; }
+    if (t.id === 'evCom') { const e = S.ev[S.sel] = S.ev[S.sel] || {}; e.c = t.value; e.at = new Date().toISOString(); save(); return; }
     if (t.id === 'subj') { S.ed[S.sel].subj = t.value; save(); return; }
     if (t.id === 'rq') { S.rq = t.value; clearTimeout(bind._q); bind._q = setTimeout(() => { renderRecipes(); const x = $('#rq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); return; }
   });

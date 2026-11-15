@@ -376,7 +376,7 @@ function b3cHTML(o, oid, i, done) {
   const lastSlot = (arr) => { let k = NS - 1; while (k > 0 && !arr[k]) k--; return 360 + 30 * (k + 1); };
   const HZ = Math.min(NS, Math.max(24, Math.ceil((Math.max(endAbs, lastSlot(cur.nn), lastSlot(cur.BT)) - 360) / 60) * 2));
   const tabs = [['V', 'Visi mazgai']].concat(window.BPDB.B3PADS.map((p) => [String(p), B3N[p]]));
-  let h = `<div class="b3c"><div class="b3tabs">${tabs.map(([k, n]) => `<button type="button" class="b3tab" data-b3v="${i}:${k}" aria-pressed="${String(view) === k}">${n}</button>`).join('')}</div>`;
+  let h = `<div class="b3c" data-bi="${i}"><div class="b3fsbar"><button type="button" class="btn btn-sm b3fsb" data-b3fs="${i}" aria-label="Grafikas per visą ekraną">⤢ Visas ekranas</button><span class="b3fsn muted">Pasukite telefoną gulsčiai – matysite daugiau.</span><button type="button" class="btn btn-sm b3fsx" data-b3fs="-1">✕ Uždaryti</button></div><div class="b3tabs">${tabs.map(([k, n]) => `<button type="button" class="b3tab" data-b3v="${i}:${k}" aria-pressed="${String(view) === k}">${n}</button>`).join('')}</div>`;
   if (view === 'V') h += `<div class="b3info"><b>Tik informacijai.</b> Užsakymą vykdo vienas mazgas – laiką ir kainą rinkitės ${esc(PLANTS[plant].name)} skirtuke.</div>`;
   if (D.forecast) h += `<div class="b3info"><b>Prognozė.</b> BetonPro duomenų ${esc(o.date)} dar nėra: apkrova – tik čia patvirtinti užsakymai, savi betonvežiai mazguose – pagal įprastą pasiskirstymą (${D.typN} pask. darbo d.).</div>`;
   // laiko pasirinkimas – viršuje
@@ -836,6 +836,30 @@ function filtered() {
     if (S.filter === 'bad') return S.ev[L.id] && S.ev[L.id].ok === false;
     if (S.filter === 'unev') return !S.ev[L.id] || S.ev[L.id].ok == null;
     return true;
+  });
+}
+/* Telefone: grafikai rodo ±3 val. aplink pasirinktą laiką, kitas valandas – slenkant (kairė / dešinė skalės lieka vietoje);
+   paspaudus „Visas ekranas“ – visa diena per visą ekraną. Visi grafiko blokai slenka kartu. */
+let B3FS = null;
+function b3mob() {
+  const mob = isMob();
+  $$('.b3c').forEach((c) => {
+    const fs = B3FS != null && String(B3FS) === c.dataset.bi;
+    c.classList.toggle('fs', fs); document.body.classList.toggle('b3fs-on', B3FS != null && !!$('.b3c.fs'));
+    const zoom = mob && !fs;
+    c.classList.toggle('zm', zoom);
+    if (!zoom) { c.style.removeProperty('--zw'); c.style.removeProperty('--zwp'); return; }
+    // matomas langas – 6 val.: kairė etikečių / skalės juosta 92 px, dešinė 70 px – visuose blokuose vienodai
+    const pl = c.querySelector('.b3pl2'), hz = Number(pl && pl.dataset.hz) || 24, span = hz * 30;
+    const W = c.clientWidth, vw = Math.max(120, W - 162), zw = Math.round(vw * Math.max(1, hz / 2 / 6)); c.style.setProperty('--zw', zw + 'px');
+    const sc = [...c.querySelectorAll('.b3c-ch, .b3axrow, .b3pumps')];
+    const sel = c.querySelector('.b3o[aria-pressed="true"]'), m = sel ? Number(sel.dataset.b3t.split(':')[1]) : 480;
+    const x = Math.max(0, (m - 360) / span * zw - vw / 2);
+    if (c.dataset.zinit !== String(m)) { sc.forEach((s) => { s.scrollLeft = x; }); c.dataset.zinit = String(m); }
+    if (!c.dataset.zsync) {
+      c.dataset.zsync = '1'; let lock = false;
+      sc.forEach((s) => s.addEventListener('scroll', () => { if (lock) return; lock = true; sc.forEach((o) => { if (o !== s) o.scrollLeft = s.scrollLeft; }); requestAnimationFrame(() => { lock = false; }); }, { passive: true }));
+    }
   });
 }
 const isMob = () => window.matchMedia('(max-width:820px)').matches;
@@ -1509,6 +1533,7 @@ function bind() {
     if (t.id === 'sendR') { const ed = $('#replyEd'), ta = $('#replyTa'); S.sent = S.sent || {}; S.sent[S.sel] = { at: new Date().toISOString(), reply: ed ? ed.innerText + '\n\n—\nParengta su BetonPro HUB' : ta ? ta.value : '', replyH: ed ? ed.innerHTML + MFOOT : null }; S.closed[S.sel] = true; save(); toast('Atsakymas pažymėtas kaip išsiųstas (testas) – atidarytas kitas laiškas.'); goNext(); return; }
     if (t.id === 'closeL') { S.closed[S.sel] = true; save(); toast('Laiškas uždarytas – atidarytas kitas laukiantis.'); goNext(); return; }
     if (t.id === 'unclose') { delete S.closed[S.sel]; if (S.sent) delete S.sent[S.sel]; save(); renderAll(); return; }
+    if (t.dataset.b3fs != null) { const v = Number(t.dataset.b3fs); B3FS = v >= 0 ? v : null; b3mob(); return; }
     if (t.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (t.id === 'toAppr') { const x = apprEl(); if (x) { (x.closest('.card') || x).scrollIntoView({ behavior: 'smooth', block: 'end' }); } return; }
     if (t.dataset.b3v) { const [i, v] = t.dataset.b3v.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).v = v; save(); keep(renderDetail); b3scroll(); return; }
@@ -1599,7 +1624,9 @@ function fabUpd() {
 }
 // Tvirtinimo vieta: veiksmų mygtukai dešiniajame skydelyje (telefone – po laišku).
 const apprEl = () => document.querySelector('#side .acts');
-window.addEventListener('scroll', fabUpd, { passive: true }); window.addEventListener('resize', fabUpd);
+window.addEventListener('scroll', fabUpd, { passive: true }); window.addEventListener('resize', () => { fabUpd(); b3mob(); });
+new MutationObserver(() => requestAnimationFrame(b3mob)).observe(document.getElementById('detail') || document.body, { childList: true, subtree: false });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && B3FS != null) { B3FS = null; b3mob(); } });
 setInterval(fabUpd, 800);
 async function boot() {
   S = load();

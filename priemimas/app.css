@@ -531,3 +531,33 @@ input[type=text],input[type=email],input[type=tel],input[type=number],input[type
 .fab{position:fixed;right:18px;bottom:18px;z-index:20;display:flex;gap:8px}
 #toAppr{background:var(--y);border-color:var(--y);color:var(--ink);font-weight:700}
 #toTop[hidden],#toAppr[hidden]{display:none}
+
+/* v22 – grafikai: telefone ±3 val. su slinkimu, visas ekranas */
+.b3fsbar{display:none;align-items:center;gap:8px;flex-wrap:wrap}
+.b3fsx,.b3fsn{display:none}
+@media(max-width:820px){
+  .b3fsbar{display:flex}
+  .b3c.zm .b3c-ch,.b3c.zm .b3axrow,.b3c.zm .b3pumps{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .b3c.zm .b3c-ch::-webkit-scrollbar,.b3c.zm .b3axrow::-webkit-scrollbar,.b3c.zm .b3pumps::-webkit-scrollbar{display:none}
+  .b3c.zm .b3pl2{flex:0 0 var(--zw)}
+  .b3c.zm .b3ax{position:sticky;left:0;z-index:4;background:#fff;flex:none;width:92px}
+  .b3c.zm .b3rs{position:sticky;right:0;z-index:4;background:rgba(255,255,255,.92);flex:none}
+  .b3c.zm .b3axrow>div{flex:0 0 var(--zw);min-width:0}
+  .b3c.zm .b3axrow>i{position:sticky;left:0;z-index:3;background:#fff;align-self:stretch;width:92px!important;flex:none}
+  .b3c.zm .b3axrow>i:last-child{left:auto;right:0;width:70px!important}
+  .b3c.zm .b3pr{width:max-content;min-width:100%}
+  .b3c.zm .b3pt,.b3c.zm .b3pr.ax .b3axis{flex:0 0 var(--zw)}
+  .b3c.zm .b3pr::after{content:"";flex:0 0 70px;align-self:stretch;position:sticky;right:0;background:#fff;z-index:3}
+  .b3c.zm .b3pl{position:sticky;left:0;z-index:3;background:#fff}
+  .b3c.zm .b3hrs span{font-size:11px}
+}
+/* visas ekranas (telefone; kompiuteryje mygtukas nerodomas) */
+.b3c.fs>*{flex-shrink:0}
+.b3c.fs{position:fixed;inset:0;z-index:200;background:#fff;overflow:auto;padding:10px 12px 24px;margin:0}
+.b3c.fs .b3fsb,.b3c.fs .b3fsn{display:none}
+.b3c.fs .b3fsx,.b3c.fs .b3fsbar{display:flex}
+.b3c.fs .b3fsbar{position:sticky;top:-10px;z-index:10;background:#fff;padding:6px 0;justify-content:space-between}
+@media(max-width:820px) and (orientation:portrait){.b3c.fs .b3fsn{display:inline}}
+body.b3fs-on{overflow:hidden}
+body.b3fs-on .fab{display:none}
+@media(max-width:820px){.b3c.zm .b3pl{width:92px!important;flex:0 0 92px!important;min-height:22px}}

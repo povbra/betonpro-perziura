@@ -256,3 +256,4 @@ a{color:var(--ink)}
 .b3mt.lo{top:-36px}
 .b3o{flex-basis:168px}
 #replyFromFields{align-self:flex-start}
+.strip{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}

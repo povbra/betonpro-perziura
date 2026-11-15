@@ -626,7 +626,7 @@ function genReply(id) {
     const ch = parts.filter((p) => p.changed);
     if (ch.length) body += '\n\n' + ch.map((p) => 'Jūsų prašytu laiku (' + p.changed.asked + ') ' + (p.changed.why || 'pristatyti negalime') + ', todėl siūlome pradžią ' + p.changed.got + '.').join('\n') + ' Jei šis laikas netinka, praneškite – pasiūlysime kitą.';
     const wn = parts.filter((p) => p.win);
-    if (wn.length) body += '\n\n' + wn.map((p) => 'Pagal Jūsų nurodytą laiką („' + p.win.lab + '“) betonavimo pradžia ' + p.win.date + ' ' + p.win.got + '.').join('\n') + ' Jei laikas netinka – praneškite.';
+    if (wn.length) body += '\n\n' + 'Pradžios laiką parinkome pagal Jūsų nurodytą („' + Array.from(new Set(wn.map((p) => p.win.lab))).join('“, „') + '“). Jei laikas netinka – praneškite.';
     if (skipped.length) body += '\n\n' + skipped.map((x) => 'Dėl ' + (x.i + 1) + ' užsakymo (' + (x.o.date ? x.o.date.slice(5) : 'be datos') + (x.o.object ? ', ' + x.o.object : '') + ') patikslinsime atskirai.').join('\n');
     if (R.klausimas_klientui && !complete(id)) body += '\n\n' + R.klausimas_klientui;
     if (act.some((o) => o.qtyApprox)) body += '\n\nKiekį patikslinsime paskutiniu betonvežiu.';
@@ -692,9 +692,26 @@ function filtered() {
   });
 }
 function renderLetters() { renderList(); renderDetail(); renderSide(); }
+// Matavimas: kiek užsakymų laiškų galima priimti iš karto (BP užpildė datą, kiekį, receptą; laikas galimas; klausti nereikia), kiek reikia pataisyti, kiek lieka klausimų klientui.
+function quickStats() {
+  const r = { quick: [], fix: [], ask: [], err: [], info: [], orders: 0, ordersQuick: 0 };
+  LETTERS.forEach((L) => {
+    const R = S.res[L.id]; if (!R || !R.tipas) { if (R && R._err) r.err.push(L.id); return; }
+    if (R.tipas === 'ne_uzsakymas') { r.info.push(L.id); return; }
+    const E = S.ed[L.id] || { orders: [] }, os = E.orders.map((o, i) => ({ o, i })).filter((x) => x.o.action !== 'atsaukti');
+    if (!E.orders.length) { r.err.push(L.id); return; }
+    if (!os.length) { r.quick.push(L.id); return; }
+    r.orders += os.length;
+    const ok = os.filter((x) => x.o.date && Number(x.o.qty) > 0 && x.o.recipeId && !orderProbs(L.id, x.o, x.i).length);
+    r.ordersQuick += ok.length;
+    if (isQuestion(L.id)) r.ask.push(L.id); else if (ok.length === os.length) r.quick.push(L.id); else r.fix.push(L.id);
+  });
+  const n = r.quick.length + r.fix.length + r.ask.length + r.err.length; r.n = n; r.pct = n ? Math.round(r.quick.length / n * 100) : 0;
+  return r;
+}
 function renderList() {
   const n = LETTERS.length, an = LETTERS.filter((L) => S.res[L.id] && S.res[L.id].tipas).length, ap = Object.keys(S.appr).length, rj = Object.keys(S.rej).length;
-  $('#strip').innerHTML = [[n, 'Laiškų teste (30 paskutinių' + (window.BPDB && window.BPDB.letters ? ', su kontaktais)' : ')')], [an, 'Perskaitė ' + BP + ' (AI)'], [LETTERS.filter((L) => isPending(L.id)).length, 'Laukia jūsų'], [ap, 'Patvirtinta · ' + Object.values(S.appr).reduce((a, x) => a + (x.orders || []).length, 0) + ' užs.'], [evC('ok') + ' / ' + evC('bad'), 'Įvertinta ✓ / ✗']].map((x, i) => `<div><span class="n">${x[0]}</span><span class="l">${String(i + 1).padStart(2, '0')} · ${x[1]}</span></div>`).join('');
+  $('#strip').innerHTML = [[n, 'Laiškų teste (30 paskutinių' + (window.BPDB && window.BPDB.letters ? ', su kontaktais)' : ')')], [an, 'Perskaitė ' + BP + ' (AI)'], [LETTERS.filter((L) => isPending(L.id)).length, 'Laukia jūsų'], [ap, 'Patvirtinta · ' + Object.values(S.appr).reduce((a, x) => a + (x.orders || []).length, 0) + ' užs.'], [evC('ok') + ' / ' + evC('bad'), 'Įvertinta ✓ / ✗']].concat((() => { const q = quickStats(); return q.n ? [[q.pct + ' %', `Priimama iš karto · ${q.quick.length} iš ${q.n} užs. laiškų (taisyti ${q.fix.length}, klausti ${q.ask.length}${q.err.length ? ', klaida ' + q.err.length : ''})`]] : []; })()).map((x, i) => `<div><span class="n">${x[0]}</span><span class="l">${String(i + 1).padStart(2, '0')} · ${x[1]}</span></div>`).join('');
   const F = [['all', 'Visi'], ['todo', 'Laukia'], ['none', 'Neanalizuoti'], ['orders', 'Užsakymai'], ['done', 'Patvirtinti'], ['closed', 'Uždaryti'], ['bad', '✗ Blogai'], ['unev', 'Neįvertinti']];
   $('#filters').innerHTML = F.map(([k, l]) => `<button type="button" class="flt" data-f="${k}" aria-pressed="${S.filter === k}">${l}</button>`).join('') +
     `<button type="button" class="flt" id="runAll" ${key() ? '' : 'disabled'} title="Perskaityti visus neanalizuotus laiškus su AI">${BP} Analizuoti visus</button>`;
@@ -1194,6 +1211,6 @@ async function boot() {
   } catch (e) { document.body.insertAdjacentHTML('afterbegin', '<div class="err">Nepavyko įkelti duomenų: ' + esc(e.message) + '</div>'); return; }
   bind(); renderAll(); loadDb();
 }
-window.__bp = { get S() { return S; }, normProps, recipeOptions, capOptions, genReply, fromAI, initEdit, approve, renderAll, status, save, get LETTERS() { return LETTERS; }, setRes: (id, r) => { S.res[id] = r; initEdit(id, true); save(); renderAll(); } };
+window.__bp = { quickStats, orderProbs, isQuestion, complete, get S() { return S; }, normProps, recipeOptions, capOptions, genReply, fromAI, initEdit, approve, renderAll, status, save, get LETTERS() { return LETTERS; }, setRes: (id, r) => { S.res[id] = r; initEdit(id, true); save(); renderAll(); } };
 boot();
 })();

@@ -1113,7 +1113,7 @@ function renderSide() {
   if (!L) { el.innerHTML = ''; return; }
   const R = S.res[L.id], E = S.ed[L.id], done = S.appr[L.id] && !S.appr[L.id].partial ? S.appr[L.id] : null, closed = S.closed && S.closed[L.id];
   if (!E && R && R.tipas === 'ne_uzsakymas') { el.innerHTML = closed ? `<div class="note">Laiškas uždarytas – nerodomas „Laukia peržiūros“.</div><button type="button" class="btn btn-act" id="unclose"><span>Grąžinti į eilę</span><span>↺</span></button>` : `<button type="button" class="btn btn-go btn-act" id="closeL"><span>Atlikta – nerodyti</span><span aria-hidden="true">✓</span></button>`; return; }
-  if (!E) { el.innerHTML = `<div class="card"><div class="card-b muted">Atsakymas klientui atsiras, kai ${BP} perskaitys laišką arba užpildysite juodraštį ranka.</div></div>`; return; }
+  if (!E) { el.innerHTML = `<div class="card"><div class="card-b muted"><span>Atsakymas klientui atsiras, kai ${BP} perskaitys laišką arba užpildysite juodraštį ranka.</span></div></div>`; return; }
   const sms = E.fmt === 'sms', gen = sms ? smsText(L.id) : genReply(L.id);
   const edited = E.reply != null, txt = edited ? E.reply : gen, stale = edited && E.replyBase !== gen && !done;
   const subj = E.subj != null ? E.subj : 'Re: ' + String(L.subject || '').replace(/^(re|ats\.?|fwd?):\s*/i, '');

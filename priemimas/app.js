@@ -180,7 +180,10 @@ function capOptions(o, oid) {
 
 /* ---------- B3c forma: ar galime priimti (tikri BetonPro duomenys) ---------- */
 const B3N = { 12: 'Vilnius', 13: 'Stašėnai', 11: 'Runeikiai', 14: 'Baisogala' };
-const B3C = { 13: '#3A4652', 14: '#B9BEC4', 11: '#7D97B8', 12: '#A88F5E' };
+// Mazgų spalvos (BetonPro paletė, aiškiai skirtingos): Runeikiai – mėlyna, Stašėnai – žalsva, Baisogala – ruda, Vilnius – violetinė.
+const B3C = { 11: '#3B6FB6', 13: '#2E9C8F', 14: '#9A6B3F', 12: '#7A5BA6' };
+// Užsakymų spalvos vieno mazgo grafike: 8 didžiausi tos dienos užsakymai – atskiros spalvos, kiti – pilki.
+const B3OC = ['#3B6FB6', '#2E9C8F', '#9A6B3F', '#7A5BA6', '#5C6B7A', '#B0558A', '#6F8F3A', '#3E9EC9'], B3OTHER = '#C3C7CC';
 const B3AP = '#6B7480';
 const B3P = { R: 11, S: 13, B: 14 };
 const TRF = 140, B3W = 100, B3LG = 56, B3H = 220, NS = 36;
@@ -205,12 +208,14 @@ function b3trf(BT, nn, own1, own2) { let t = 0; BT.forEach((v, i) => { t = Math.
 function b3data(date, exOid) {
   const B = window.BPDB, D0 = B.b3day(date); if (!D0) return null;
   const D = { date, c3: D0.c3, own: Object.assign({}, D0.own), trips: Object.assign({}, D0.trips), slots: {}, ap: {}, apTrips: {}, pumps: D0.pumps.slice(), forecast: D0.forecast, typN: 0 };
-  B.B3PADS.forEach((p) => { D.slots[p] = pad36(D0.slots[p]); D.ap[p] = new Array(NS).fill(0); D.apTrips[p] = 0; });
+  D.slotsBy = {}; D.orders = {}; D.apBy = {};
+  B.B3PADS.forEach((p) => { D.slots[p] = pad36(D0.slots[p]); D.ap[p] = new Array(NS).fill(0); D.apTrips[p] = 0; D.slotsBy[p] = (D0.slotsBy && D0.slotsBy[p]) || []; D.orders[p] = ((D0.orders && D0.orders[p]) || []).slice(); D.apBy[p] = Array.from({ length: NS }, () => ({})); });
   if (D0.forecast && B.b3typical) { const T = B.b3typical(); if (T) { D.own = Object.assign({}, T.own); D.typN = T.n; } }
   Object.entries(S.appr).forEach(([lid, a]) => (a.orders || []).forEach((o) => {
     if (o.date !== date || o.action === 'atsaukti' || (lid + ':' + (o._i != null ? o._i : -1)) === exOid) return;
     const p = B3P[o.plant]; if (!p) return;
-    const nn = b3need(o, o.plant, (o.S || 0) + 360); nn.forEach((v, i) => { D.ap[p][i] += v; }); D.apTrips[p] += (o.trips || []).length;
+    const nn = b3need(o, o.plant, (o.S || 0) + 360), ak = 'ap:' + lid + ':' + o._i; nn.forEach((v, i) => { D.ap[p][i] += v; if (v) D.apBy[p][i][ak] = v; }); D.apTrips[p] += (o.trips || []).length;
+    D.orders[p].push({ k: ak, client: o.client || '', m3: Number(o.qty) || 0, trips: (o.trips || []).length || Math.ceil((Number(o.qty) || 0) / TRIP), time: fmt(o.S || 0), ap: true });
     if (o.pump && o.pump.need && o.mode !== 'savivartis') { const f = pumpFleetMap().get(o.pumpCar || ''); D.pumps.push({ car: !o.pumpCar || o.pumpCar === 'samdomas' ? 'samdomas·' + lid + ':' + o._i : o.pumpCar, hired: !f, type: f ? f.type : ptypeOf(o.pump.len), owner: f ? f.owner : '', c3: f ? f.c3 : false, pad: p, client: 'Patvirt. · ' + (o.client || ''), s: (o.S || 0) + 360, e: (o.pumpEnd != null ? o.pumpEnd : (o.lastArr || o.S || 0) + 40) + 360, ap: true }); }
   }));
   return D;
@@ -331,17 +336,33 @@ function b3pumps(D, o, Sabs, s, HZ, pp, i) {
   if (pp && pp.forceFail) h += `<div class="warn" style="font-size:12.5px">Pasirinktas siurblys šiuo laiku užimtas – parinktas kitas.</div>`;
   return { html: `<div class="b3pumps" data-i="${i}" data-hz="${HZ}">${h}</div>`, car: pp ? pp.car : null };
 }
+// Užsakymų spalvos mazgui: 8 daugiausiai reisų turintys užsakymai (įskaitant čia patvirtintus) – spalvos, kiti – pilki.
+function b3ocol(D, p) {
+  const list = (D.orders[p] || []).slice().sort((a, b) => b.trips - a.trips || b.m3 - a.m3), top = list.slice(0, B3OC.length), cm = {}, byK = {};
+  top.forEach((o, k) => { cm[o.k] = B3OC[k]; }); list.forEach((o) => { byK[o.k] = o; });
+  return { list, top, byK, col: (k) => cm[k] || B3OTHER, more: list.length - top.length };
+}
 function b3chart(C, nn, tag, reqAbs, selAbs, newHere, D, HZ, win, DI) {
   const MX = Math.max(12, Math.max(...C.BT.slice(0, HZ).map((v, i) => v + nn[i])) + 4), y = (v) => v / MX * B3H, bw = B3W / HZ;
   const span = HZ * 30, X = (m) => ((m - 360) / span * B3W).toFixed(2);
   let bars = '';
+  const one = C.pads.length === 1, OC = one ? b3ocol(D, C.pads[0]) : null;
   const env = new Array(NS).fill(0); C.H.lv.forEach((l) => { for (let i = l.a; i <= l.b; i++) env[i]++; });
   env.slice(0, HZ).forEach((v, i) => { if (v) bars += `<i class="b3env" style="left:${(i * bw).toFixed(2)}%;width:${bw.toFixed(2)}%;bottom:${y(C.own2).toFixed(1)}px;height:${y(v).toFixed(1)}px"></i>`; });
   if (C.own2 > C.own1) bars += `<i class="b3band" style="bottom:${y(C.own1).toFixed(1)}px;height:${(y(C.own2) - y(C.own1)).toFixed(1)}px"></i>`;
   for (let i = 0; i < HZ; i++) {
     let yb = 0;
-    C.pads.forEach((p) => { const v = D.slots[p][i]; if (v) { bars += `<i class="b3b" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px;background:${B3C[p]}"></i>`; yb += v; } });
-    C.pads.forEach((p) => { const v = D.ap[p][i]; if (v) { bars += `<i class="b3b ap" title="patvirtinta čia · ${B3N[p]}" style="--c:${B3C[p]};left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px"></i>`; yb += v; } });
+    const seg = (v, cls, style, title) => { bars += `<i class="b3b${cls}" title="${esc(title)}" style="${style}left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px"></i>`; yb += v; };
+    if (one) {
+      // vieno mazgo grafikas – spalvos pagal užsakymą (klientą)
+      const p = C.pads[0], by = D.slotsBy[p][i] || {}, rest = D.slots[p][i] - Object.values(by).reduce((s, x) => s + x, 0);
+      OC.list.forEach((o) => { const v = by[o.k]; if (v) seg(v, '', `background:${OC.col(o.k)};`, `${o.client} · ${Math.round(o.m3 * 10) / 10} m³ · ${o.time || ''}`); });
+      if (rest > 0) seg(rest, '', `background:${B3OTHER};`, 'kiti reisai');
+      const ab = D.apBy[p][i] || {}; Object.keys(ab).forEach((k) => { const o = OC.byK[k]; seg(ab[k], ' ap', `--c:${OC.col(k)};`, 'patvirtinta čia · ' + (o ? o.client : '')); });
+    } else {
+      C.pads.forEach((p) => { const v = D.slots[p][i]; if (v) seg(v, '', `background:${B3C[p]};`, B3N[p]); });
+      C.pads.forEach((p) => { const v = D.ap[p][i]; if (v) seg(v, ' ap', `--c:${B3C[p]};`, 'patvirtinta čia · ' + B3N[p]); });
+    }
     if (nn[i]) bars += `<i class="b3b nw" data-drag="${DI}" title="Naujas užsakymas – tempkite, kad pakeistumėte laiką" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(nn[i]).toFixed(1)}px"></i>`;
   }
   bars += `<i class="b3l" style="bottom:${y(C.own1).toFixed(1)}px"></i><span class="b3lt" style="top:${(B3H - y(C.own1) + 4).toFixed(1)}px">mazgo ${C.own1}</span>`;
@@ -378,7 +399,7 @@ function b3cHTML(o, oid, i, done) {
   const tabs = [['V', 'Visi mazgai']].concat(window.BPDB.B3PADS.map((p) => [String(p), B3N[p]]));
   let h = `<div class="b3c" data-bi="${i}"><div class="b3fsbar"><button type="button" class="btn btn-sm b3fsb" data-b3fs="${i}" aria-label="Grafikas per visą ekraną">⤢ Visas ekranas</button><span class="b3fsn muted">Pasukite telefoną gulsčiai – matysite daugiau.</span><button type="button" class="btn btn-sm b3fsx" data-b3fs="-1">✕ Uždaryti</button></div><div class="b3tabs">${tabs.map(([k, n]) => `<button type="button" class="b3tab" data-b3v="${i}:${k}" aria-pressed="${String(view) === k}">${n}</button>`).join('')}</div>`;
   if (view === 'V') h += `<div class="b3info"><b>Tik informacijai.</b> Užsakymą vykdo vienas mazgas – laiką ir kainą rinkitės ${esc(PLANTS[plant].name)} skirtuke.</div>`;
-  if (D.forecast) h += `<div class="b3info"><b>Prognozė.</b> BetonPro duomenų ${esc(o.date)} dar nėra: apkrova – tik čia patvirtinti užsakymai, savi betonvežiai mazguose – pagal įprastą pasiskirstymą (${D.typN} pask. darbo d.).</div>`;
+  if (D.forecast) h += `<div class="b3info"><b>Prognozė.</b> BetonPro duomenų ${esc(o.date)} dienai dar nėra – rodomi tik čia patvirtinti užsakymai (brūkšniuoti) ir naujas (geltonas). Savi betonvežiai mazguose – pagal įprastą pasiskirstymą (${D.typN} pask. darbo d.).</div>`;
   // laiko pasirinkimas – viršuje
   h += `<span class="eb" style="font-size:10.5px;color:#15171A;font-weight:700">Pasirinkite laiką${win ? ' · klientas: ' + esc(win[2]) + ' (' + hhmm(win[0] + 360) + '–' + hhmm(win[1] + 360) + ') – parenkama pagal betonvežius ir siurblius' : ''}</span>
     <div class="b3opts">${res.map((r) => {
@@ -408,7 +429,8 @@ function b3cHTML(o, oid, i, done) {
   if (tparts.length) cl = `<b class="bad">${nm} · ${hhmm(sel)}: ${sp(cur.cost)} €</b> – ${tparts.join(' + ')}.${newHere ? ` Naujas užsakymas prideda <b>${sp(cur.add)} €</b>.` : ''}`;
   else cl = `<b class="okt">${nm} · ${hhmm(sel)}:</b> užtenka savų betonvežių${cur.pp ? ' ir siurblio ' + esc(cur.pp.car) : ''}${newHere ? ' – naujas užsakymas telpa be papildomų kaštų.' : '.'}`;
   h += `<div class="b3cost">${cl}<br><span class="muted">Siurblio atvykimas ir darbo valandos išrašomi klientui; prastovos – ne, todėl jos yra mūsų kaštai.</span></div>`;
-  h += `<div class="legend">${window.BPDB.B3PADS.map((p) => `<span><i style="background:${B3C[p]}"></i>${B3N[p]}</span>`).join('')}<span><i class="lg-ap"></i>patvirtinta čia (mazgo spalva, brūkšniuota)</span><span><i style="background:#F5C518;box-shadow:inset 0 0 0 1px #15171A"></i>naujas užsakymas</span><span><i style="border-top:2px solid #1E8A5A;height:0"></i>mazgo C3</span><span><i style="border-top:2px dashed #1E8A5A;height:0"></i>+ pervažiuojantys</span><span><i class="b3env-i"></i>samdyti / prastova (apmokami)</span><span><i style="background:#D2452F;opacity:.6"></i>persidengia</span></div>`;
+  const OCl = view !== 'V' ? b3ocol(D, Number(view)) : null;
+  h += `<div class="legend">${OCl ? OCl.top.map((o) => `<span title="${esc(o.client)}"><i class="${o.ap ? 'lg-ap' : ''}" style="${o.ap ? '--c:' : 'background:'}${OCl.col(o.k)}"></i>${esc(String(o.client).replace(/^(UAB|AB|MB|IĮ)\s+/, '').replace(/[„“"]/g, '').slice(0, 22))} · ${String(Math.round(o.m3 * 10) / 10).replace('.', ',')} m³</span>`).join('') + (OCl.more > 0 || OCl.list.length === 0 ? `<span><i style="background:${B3OTHER}"></i>${OCl.list.length ? 'kiti užsakymai (' + OCl.more + ')' : 'kiti reisai'}</span>` : '') : window.BPDB.B3PADS.map((p) => `<span><i style="background:${B3C[p]}"></i>${B3N[p]}</span>`).join('')}<span><i class="lg-ap"></i>patvirtinta čia (brūkšniuota)</span><span><i style="background:#F5C518;box-shadow:inset 0 0 0 1px #15171A"></i>naujas užsakymas</span><span><i style="border-top:2px solid #1E8A5A;height:0"></i>mazgo C3</span><span><i style="border-top:2px dashed #1E8A5A;height:0"></i>+ pervažiuojantys</span><span><i class="b3env-i"></i>samdyti / prastova (apmokami)</span><span><i style="background:#D2452F;opacity:.6"></i>persidengia</span></div>`;
   return h + '</div>';
 }
 // Pasirinktas laikas (minutės nuo 06:00), tinkamumas, siurblys – B3c, jei yra DB, kitaip senasis modelis.

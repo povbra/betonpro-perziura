@@ -113,7 +113,7 @@
         arrs.push(a);
         if (info && clientCar(info.owner, o.client)) return; // kliento betonvežis (pasiima pats)
         const un = Math.max(5, Math.round(5 * (t.q || 7.5))); // išsikrovimas 5 min/m³
-        L.push({ pad: o.pad, car: t.car, s: a - tr - 30, e: a + un + tr }); // pasikrovimas 30 min
+        L.push({ pad: o.pad, car: t.car, s: a - tr - 30, e: a + un + tr, ok: o.k, client: o.client, m3: Number(t.q) || 7.5, time: o.time }); // pasikrovimas 30 min
         if (info && info.c3) { const c = c3trips.get(t.car) || c3trips.set(t.car, {}).get(t.car); c[o.pad] = (c[o.pad] || 0) + 1; }
       });
       pj.forEach((p) => { if (p.k === o.k && arrs.length) { p.s = Math.min(...arrs); p.e = Math.max(...arrs) + 40; } });
@@ -122,13 +122,17 @@
     const c3all = CARS ? Array.from(CARS.entries()).filter(([, v]) => v.c3 && !v.pump).map(([k]) => k) : [];
     const own = {}; B3PADS.forEach((p) => { own[p] = 0; });
     c3trips.forEach((c) => { const best = Object.entries(c).sort((a, b) => b[1] - a[1])[0]; if (best && own[best[0]] != null) own[best[0]]++; });
-    const slots = {}, trips = {};
+    const slots = {}, trips = {}, slotsBy = {}, orders = {};
     B3PADS.forEach((p) => {
       const l = L.filter((x) => x.pad === p); trips[p] = l.length;
       slots[p] = Array.from({ length: B3NS }, (_, i) => { const a = 360 + 30 * i, b = a + 30; return new Set(l.filter((x) => x.s < b && a < x.e).map((x) => x.car)).size; });
+      // tas pats užimtumas, išskaidytas pagal užsakymą (spalvos pagal užsakymą / klientą vieno mazgo grafike)
+      slotsBy[p] = Array.from({ length: B3NS }, (_, i) => { const a = 360 + 30 * i, b = a + 30, m = new Map(); l.filter((x) => x.s < b && a < x.e).forEach((x) => { (m.get(x.ok) || m.set(x.ok, new Set()).get(x.ok)).add(x.car); }); const r = {}; m.forEach((v, k) => { r[k] = v.size; }); return r; });
+      const om = new Map(); l.forEach((x) => { const o = om.get(x.ok) || om.set(x.ok, { k: x.ok, client: x.client, m3: 0, trips: 0, time: x.time }).get(x.ok); o.m3 += x.m3; o.trips++; });
+      orders[p] = Array.from(om.values()).sort((a, b) => b.trips - a.trips || b.m3 - a.m3);
     });
     const any = B3PADS.some((p) => trips[p] > 0);
-    return { date, own, c3: c3all.length || 6, slots, trips, pumps, forecast: !any };
+    return { date, own, c3: c3all.length || 6, slots, slotsBy, orders, trips, pumps, forecast: !any };
   }
   // Įprastas savų C3 betonvežių pasiskirstymas pagal mazgus (paskutinės 20 darbo dienų su duomenimis) – prognozei.
   let TYP = null;

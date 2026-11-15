@@ -78,7 +78,7 @@
     return m;
   }
   // B3c forma: vienos dienos betonvežių užimtumas pagal mazgą (30 min langai 06:00–18:00), C3 betonvežiai, tikri siurbliai
-  const B3PADS = [12, 13, 11, 14];
+  const B3PADS = [12, 13, 11, 14], B3NS = 36;
   const nmz = (x) => String(x || '').toLowerCase().replace(/[„“"']/g, '').replace(/\b(uab|mb|ab)\b/g, '').replace(/[,.]/g, ' ').replace(/\s+/g, ' ').trim();
   function clientCar(owner, client) { const a = nmz(owner), b = nmz(client); return !!(a && b && (a.includes(b) || b.includes(a))); }
   function b3day(date) {
@@ -108,9 +108,21 @@
     const slots = {}, trips = {};
     B3PADS.forEach((p) => {
       const l = L.filter((x) => x.pad === p); trips[p] = l.length;
-      slots[p] = Array.from({ length: 24 }, (_, i) => { const a = 360 + 30 * i, b = a + 30; return new Set(l.filter((x) => x.s < b && a < x.e).map((x) => x.car)).size; });
+      slots[p] = Array.from({ length: B3NS }, (_, i) => { const a = 360 + 30 * i, b = a + 30; return new Set(l.filter((x) => x.s < b && a < x.e).map((x) => x.car)).size; });
     });
-    return { date, own, c3: c3all.length || 6, slots, trips, pumps };
+    const any = B3PADS.some((p) => trips[p] > 0);
+    return { date, own, c3: c3all.length || 6, slots, trips, pumps, forecast: !any };
+  }
+  // Įprastas savų C3 betonvežių pasiskirstymas pagal mazgus (paskutinės 20 darbo dienų su duomenimis) – prognozei.
+  let TYP = null;
+  function b3typical() {
+    if (TYP || !IDX) return TYP;
+    const ds = Array.from(IDX.byDate.keys()).sort().reverse().filter((d) => { const t = new Date(d + 'T12:00:00').getDay(); return t > 0 && t < 6; });
+    const acc = {}; B3PADS.forEach((p) => { acc[p] = []; }); let n = 0;
+    for (const d of ds) { const D = b3day(d); if (!D || D.forecast) continue; B3PADS.forEach((p) => acc[p].push(D.own[p] || 0)); if (++n >= 20) break; }
+    const med = (a) => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+    TYP = { n, own: {} }; B3PADS.forEach((p) => { TYP.own[p] = med(acc[p]); });
+    return TYP;
   }
 
   async function load() {
@@ -182,5 +194,5 @@
   }
   function dayInfo(date) { const os = IDX ? (IDX.byDate.get(date) || []).filter((o) => o.plant) : []; const cars = {}; os.forEach((o) => { cars[o.plant] = cars[o.plant] || new Set(); o.trips.forEach((t) => t.car && cars[o.plant].add(t.car)); }); return { n: os.length, m3: os.reduce((s, o) => s + o.m3, 0), trips: os.reduce((s, o) => s + o.trips.length, 0), cars: Object.fromEntries(Object.entries(cars).map(([k, v]) => [k, v.size])) }; }
 
-  window.BPDB = { REPO, st, tok, setTok, load, b3day, B3PADS, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
+  window.BPDB = { REPO, st, tok, setTok, load, b3day, b3typical, B3PADS, B3NS, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
 })();

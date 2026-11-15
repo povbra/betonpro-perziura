@@ -373,3 +373,5 @@ mark{background:#F7E08A;color:var(--ink);padding:0 2px}
 .col-side .card-h{padding:12px 16px}
 .col-side .card-b{padding:14px 16px}
 .blk.cap{padding:0;border-top:1px solid #C9CED4}
+.bpl{color:inherit;vertical-align:-1px;margin:0 2px}
+.btn .bpl,.flt .bpl{margin:0}

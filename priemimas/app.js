@@ -9,7 +9,7 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const LS = 'bp-priemimas-test-v1', LSK = 'bp-priemimas-apikey';
-const BP = '<span class="bp" aria-label="BetonPro">BP</span>';
+const BP = '<span class="bpl" role="img" aria-label="BetonPro"><i class="a"></i><i class="b"></i><i class="c"></i><i class="y"></i>BP</span>';
 
 const PLANTS = {
   R: { name: 'Runeikiai', area: 'Kėdainių r.', lat: 55.300, lng: 23.905 },

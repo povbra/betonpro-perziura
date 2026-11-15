@@ -468,3 +468,16 @@ input[type=text],input[type=email],input[type=tel],input[type=number],input[type
 /* siurblių eilutės – visos priima tempimą; kito tipo/įmonės – blankesnės */
 .b3pr.oth .b3pl{opacity:.7}
 .b3pr.oth.drop .b3pl{opacity:1}
+
+/* v19 – anksti krauti: įspėjimas, ne draudimas */
+.b3o.early .eb{color:#B45309;font-weight:700}
+.b3o .erl{color:#B45309;font-size:12px;font-weight:600}
+.dragg.early{border-color:#D97706}.dragg.early::after{background:#D97706}
+.tok{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.tok .btn-sm{flex:none}
+/* laiško lentelė – siauras etikečių stulpelis, reikšmėms visas likęs plotis */
+.mail{container-type:inline-size}
+.mtb{table-layout:fixed;width:100%}
+.mtb td{padding:4px 10px 4px 0;vertical-align:top;overflow-wrap:anywhere}
+.mtb td:first-child{width:32%;white-space:normal;color:var(--g3);font-size:12px;line-height:1.35;padding-top:5px}
+@container (max-width:220px){.mtb,.mtb tbody,.mtb tr,.mtb td{display:block;width:auto!important}.mtb tr{padding:3px 0}.mtb td{padding:0}.mtb td:first-child{padding:0}}

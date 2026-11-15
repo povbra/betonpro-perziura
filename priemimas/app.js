@@ -849,9 +849,9 @@ function b3mob() {
     const zoom = mob && !fs;
     c.classList.toggle('zm', zoom);
     if (!zoom) { c.style.removeProperty('--zw'); c.style.removeProperty('--zwp'); return; }
-    // matomas langas – 6 val.: kairė etikečių / skalės juosta 92 px, dešinė 70 px – visuose blokuose vienodai
+    // matomas langas – 6 val.: kairė skalė 30 px, dešinė 46 px – visuose blokuose vienodai; siurblio pavadinimas – virš jo juostos
     const pl = c.querySelector('.b3pl2'), hz = Number(pl && pl.dataset.hz) || 24, span = hz * 30;
-    const W = c.clientWidth, vw = Math.max(120, W - 162), zw = Math.round(vw * Math.max(1, hz / 2 / 6)); c.style.setProperty('--zw', zw + 'px');
+    const W = c.clientWidth, vw = Math.max(160, W - 76), zw = Math.round(vw * Math.max(1, hz / 2 / 6)); c.style.setProperty('--zw', zw + 'px');
     const sc = [...c.querySelectorAll('.b3c-ch, .b3axrow, .b3pumps')];
     const sel = c.querySelector('.b3o[aria-pressed="true"]'), m = sel ? Number(sel.dataset.b3t.split(':')[1]) : 480;
     const x = Math.max(0, (m - 360) / span * zw - vw / 2);

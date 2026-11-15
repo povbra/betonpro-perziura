@@ -540,15 +540,21 @@ input[type=text],input[type=email],input[type=tel],input[type=number],input[type
   .b3c.zm .b3c-ch,.b3c.zm .b3axrow,.b3c.zm .b3pumps{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .b3c.zm .b3c-ch::-webkit-scrollbar,.b3c.zm .b3axrow::-webkit-scrollbar,.b3c.zm .b3pumps::-webkit-scrollbar{display:none}
   .b3c.zm .b3pl2{flex:0 0 var(--zw)}
-  .b3c.zm .b3ax{position:sticky;left:0;z-index:4;background:#fff;flex:none;width:92px}
-  .b3c.zm .b3rs{position:sticky;right:0;z-index:4;background:rgba(255,255,255,.92);flex:none}
+  .b3c.zm .b3ax{position:sticky;left:0;z-index:4;background:#fff;flex:none;width:30px}
+  .b3c.zm .b3ax span{right:3px;font-size:9px}
+  .b3c.zm .b3rs{position:sticky;right:0;z-index:4;background:#fff;flex:none;width:46px}
+  .b3c.zm .b3rs span{left:3px;font-size:8.5px}
+  .b3c.zm .b3c-hd .o{width:auto;right:0;font-size:9px}
+  .b3c.zm .b3c-hd span{font-size:9px}
   .b3c.zm .b3axrow>div{flex:0 0 var(--zw);min-width:0}
-  .b3c.zm .b3axrow>i{position:sticky;left:0;z-index:3;background:#fff;align-self:stretch;width:92px!important;flex:none}
-  .b3c.zm .b3axrow>i:last-child{left:auto;right:0;width:70px!important}
-  .b3c.zm .b3pr{width:max-content;min-width:100%}
-  .b3c.zm .b3pt,.b3c.zm .b3pr.ax .b3axis{flex:0 0 var(--zw)}
-  .b3c.zm .b3pr::after{content:"";flex:0 0 70px;align-self:stretch;position:sticky;right:0;background:#fff;z-index:3}
-  .b3c.zm .b3pl{position:sticky;left:0;z-index:3;background:#fff}
+  .b3c.zm .b3axrow>i{position:sticky;left:0;z-index:3;background:#fff;align-self:stretch;width:30px!important;flex:none}
+  .b3c.zm .b3axrow>i:last-child{left:auto;right:0;width:46px!important}
+  .b3c.zm .b3pr{width:calc(var(--zw) + 76px);min-width:0;flex-wrap:wrap;align-items:flex-start}
+  .b3c.zm .b3pt,.b3c.zm .b3pr.ax .b3axis{flex:0 0 var(--zw);margin-left:30px}
+  .b3c.zm .b3pr::after{content:"";flex:0 0 46px;align-self:stretch;position:sticky;right:0;background:#fff;z-index:3}
+  .b3c.zm .b3pl{position:sticky;left:0;z-index:3;background:transparent;flex:0 0 100%!important;width:auto!important;max-width:calc(100vw - 60px);flex-direction:row!important;gap:6px;padding-left:30px;font-size:10px;min-height:0!important}
+  .b3c.zm .b3pl span{font-size:9.5px}
+  .b3c.zm .b3pr.ax .b3pl{display:none}
   .b3c.zm .b3hrs span{font-size:11px}
 }
 /* visas ekranas (telefone; kompiuteryje mygtukas nerodomas) */
@@ -560,4 +566,4 @@ input[type=text],input[type=email],input[type=tel],input[type=number],input[type
 @media(max-width:820px) and (orientation:portrait){.b3c.fs .b3fsn{display:inline}}
 body.b3fs-on{overflow:hidden}
 body.b3fs-on .fab{display:none}
-@media(max-width:820px){.b3c.zm .b3pl{width:92px!important;flex:0 0 92px!important;min-height:22px}}
+@media(max-width:820px){.onav{position:static;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.onav>*{flex:none}}

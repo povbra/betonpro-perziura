@@ -211,7 +211,7 @@ function b3data(date, exOid) {
     if (o.date !== date || o.action === 'atsaukti' || (lid + ':' + (o._i != null ? o._i : -1)) === exOid) return;
     const p = B3P[o.plant]; if (!p) return;
     const nn = b3need(o, o.plant, (o.S || 0) + 360); nn.forEach((v, i) => { D.ap[p][i] += v; }); D.apTrips[p] += (o.trips || []).length;
-    if (o.pump && o.pump.need && o.mode !== 'savivartis') { const f = pumpFleetMap().get(o.pumpCar || ''); D.pumps.push({ car: o.pumpCar || 'samdomas', type: f ? f.type : ptypeOf(o.pump.len), owner: f ? f.owner : '', c3: f ? f.c3 : false, pad: p, client: 'Patvirt. · ' + (o.client || ''), s: (o.S || 0) + 360, e: (o.pumpEnd != null ? o.pumpEnd : (o.lastArr || o.S || 0) + 40) + 360, ap: true }); }
+    if (o.pump && o.pump.need && o.mode !== 'savivartis') { const f = pumpFleetMap().get(o.pumpCar || ''); D.pumps.push({ car: !o.pumpCar || o.pumpCar === 'samdomas' ? 'samdomas·' + lid + ':' + o._i : o.pumpCar, hired: !f, type: f ? f.type : ptypeOf(o.pump.len), owner: f ? f.owner : '', c3: f ? f.c3 : false, pad: p, client: 'Patvirt. · ' + (o.client || ''), s: (o.S || 0) + 360, e: (o.pumpEnd != null ? o.pumpEnd : (o.lastArr || o.S || 0) + 40) + 360, ap: true }); }
   }));
   return D;
 }
@@ -231,27 +231,32 @@ function pumpFleetMap() { if (!PF && DBX() && window.BPDB.pumpFleet) { PF = new 
 const sameKind = (type, ptype) => /PUMI/.test(ptype) ? /pumi/i.test(type) : !/pumi/i.test(type) && (!/42/.test(ptype) || /42/.test(type));
 function pumpRows(D) {
   const rows = new Map();
-  D.pumps.forEach((p) => { const k = p.car; (rows.get(k) || rows.set(k, { car: p.car, type: p.type, owner: p.owner, c3: p.c3, jobs: [] }).get(k)).jobs.push({ a: p.s, b: p.e, pad: p.pad, client: p.client, ap: p.ap }); });
+  D.pumps.forEach((p) => { const k = p.car; (rows.get(k) || rows.set(k, { car: p.car, type: p.type, owner: p.owner, c3: p.c3, hired: !!p.hired || /^samdomas/.test(p.car), jobs: [] }).get(k)).jobs.push({ a: p.s, b: p.e, pad: p.pad, client: p.client, ap: p.ap }); });
   pumpFleetMap().forEach((f) => { if (!rows.has(f.car)) rows.set(f.car, { car: f.car, type: f.type, owner: f.owner, c3: f.c3, jobs: [], idleFleet: true }); });
   return rows;
 }
 function idleOf(jobs) { let t = 0; const j = jobs.slice().sort((x, y) => x.a - y.a); for (let k = 1; k < j.length; k++) { const g = j[k].a - j[k - 1].b - PTRV; if (g > 0 && g <= PGAP) t += g; } return t; }
 function pumpJob(o, Sabs, s) { return { a: Sabs, b: s.done + 360 + 30 }; } // nuo pirmo betonvežio iki paskutinio iškrovimo + 30 min plovimas
-function pumpPick(D, o, Sabs, s) {
+function pumpPick(D, o, Sabs, s, force) {
   if (!(o.pump && o.pump.need) || o.mode === 'savivartis') return null;
   const ptype = ptypeOf(o.pump.len), nj = pumpJob(o, Sabs, s);
-  let best = null;
+  let best = null, forced = null;
   pumpRows(D).forEach((r) => {
-    if (r.car === 'samdomas' || !r.c3 || !sameKind(r.type, ptype)) return; // kandidatai – tik C3 siurbliai
+    const hired = r.hired;
+    if (hired ? ptLab(r.type) !== ptype : (!r.c3 || !sameKind(r.type, ptype))) return; // kandidatai – C3 siurbliai ir tą dieną jau samdyti
     if (!r.jobs.every((j) => nj.b + PTRV <= j.a || nj.a - PTRV >= j.b)) return;
     const idle = Math.max(0, idleOf(r.jobs.concat([nj])) - idleOf(r.jobs)), cost = Math.round(idle / 60 * PIDLE);
-    const c = { car: r.car, type: r.type, owner: r.owner, c3: r.c3, own: true, idle, cost, busy: r.jobs.length };
+    const c = { car: r.car, type: r.type, owner: r.owner, c3: r.c3, own: !hired, reuse: hired, idle, cost, busy: r.jobs.length };
+    if (force && r.car === force) forced = c;
     if (!best || c.cost < best.cost || (c.cost === best.cost && (c.busy > 0) - (best.busy > 0) > 0) || (c.cost === best.cost && (c.busy > 0) === (best.busy > 0) && c.c3 && !best.c3)) best = c;
   });
-  return Object.assign(best || { car: 'samdomas', type: ptype, own: false, idle: 0, cost: PHIRE }, { job: nj, ptype });
+  if (force === 'samdomas') forced = { car: 'samdomas', type: ptype, own: false, idle: 0, cost: PHIRE };
+  return Object.assign(forced || best || { car: 'samdomas', type: ptype, own: false, idle: 0, cost: PHIRE }, { job: nj, ptype, forced: !!forced, forceFail: !!force && !forced });
 }
 const hrs1 = (m) => String(Math.round(m / 6) / 10).replace('.', ',');
-function pumpTxt(pp) { return !pp ? '' : pp.own ? pp.car + (pp.idle ? ' · prastova ' + hrs1(pp.idle) + ' val.' : '') : 'samdomas ' + pp.ptype + ' +' + PHIRE + ' €'; }
+const plen = (type) => /42/.test(type || '') ? 42 : /36/.test(type || '') ? 36 : /pump/i.test(type || '') ? 36 : 28;
+const ptLab = (type) => /PUM[IP] \d/.test(type || '') ? type : /pumi/i.test(type || '') ? 'PUMI 28' : /42/.test(type || '') ? 'PUMP 42' : 'PUMP 36';
+function pumpTxt(pp) { return !pp ? '' : pp.own ? pp.car + (pp.idle ? ' · prastova ' + hrs1(pp.idle) + ' val.' : '') : pp.reuse ? 'jau samdytas ' + pp.ptype + (pp.idle ? ' · prastova ' + hrs1(pp.idle) + ' val.' : '') : 'samdomas ' + pp.ptype + ' +' + PHIRE + ' €'; }
 // Laiko planas: variantai, rekomendacija, pasirinkimas. Naudoja ir forma, ir atsakymas, ir tvirtinimas.
 function b3plan(o, oid) {
   const B = window.BPDB; if (!B || !B.ready || !B.b3day || !o.date || !o.plant || !(Number(o.qty) > 0)) return null;
@@ -263,19 +268,20 @@ function b3plan(o, oid) {
   if (win) times = times.filter((m) => m >= win[0] + 360 && m <= win[1] + 360);
   times = Array.from(new Set(times.concat([reqAbs]))).filter((m) => m >= 360 && m <= 1080).sort((a, b) => a - b);
   const st = (S.b3 = S.b3 || {})[oid] = S.b3[oid] || {};
+  if (st.t && st.t >= 360 && st.t <= 1080 && !times.includes(st.t)) times = times.concat([st.t]).sort((a, b) => a - b);
   const view = st.v || String(pad), newHere = view === 'V' || Number(view) === pad;
   const T = Number(o.travel) || 40, self = o.mode === 'savivartis';
   const feas = (m) => (self ? m - LOAD : m - T - LOAD) >= 360;
   const Z = new Array(NS).fill(0), baseV = b3calc(D, String(pad), Z);
   const res = times.map((m) => {
     const nn = b3need(o, plant, m), own = b3calc(D, String(pad), nn), shown = view === String(pad) ? own : b3calc(D, view, newHere ? nn : Z);
-    const pp = pumpPick(D, o, m, simTrips(o, plant, m - 360, 'x')), pc = pp ? pp.cost : 0;
+    const pp = pumpPick(D, o, m, simTrips(o, plant, m - 360, 'x'), st.pc), pc = pp ? pp.cost : 0;
     return Object.assign(shown, { m, nn, pp, tcost: shown.cost, cost: shown.cost + (newHere ? pc : 0), ownCost: own.cost + pc, add: own.cost - baseV.cost + pc, ok: feas(m) });
   });
   // rekomendacija: artimiausias galimas prašomam laikui; kitas – tik jei sutaupo > 200 € ir ne toliau ±2 val.; lange – pigiausias, tada ankstyviausias
   const okr = res.filter((r) => r.ok); let best = null;
   if (okr.length) {
-    if (win) best = okr.slice().sort((a, b) => a.add - b.add || a.m - b.m)[0];
+    if (win) { const iw = okr.filter((r) => r.m >= win[0] + 360 && r.m <= win[1] + 360); best = (iw.length ? iw : okr).slice().sort((a, b) => a.add - b.add || a.m - b.m)[0]; }
     else {
       const near = okr.slice().sort((a, b) => Math.abs(a.m - reqAbs) - Math.abs(b.m - reqAbs) || a.m - b.m)[0];
       const alt = okr.filter((r) => Math.abs(r.m - reqAbs) <= 120 && near.add - r.add > 200).sort((a, b) => a.add - b.add)[0];
@@ -287,32 +293,43 @@ function b3plan(o, oid) {
   const s = simTrips(o, plant, sel - 360, 'x');
   return { D, plant, pad, win, reqAbs, times, view, newHere, res, best: bestM, sel, cur, s, pp: cur.pp, ok: cur.ok, why: cur.ok ? [] : ['per anksti krauti (mazgas pradeda 06:00, pasikrovimas 30 min + kelionė ' + T + ' min)'] };
 }
-function b3pumps(D, o, Sabs, s, HZ, pp) {
-  const END = 360 + HZ * 30, rows = pumpRows(D);
+function b3pumps(D, o, Sabs, s, HZ, pp, i) {
+  const END = 360 + HZ * 30, rows = pumpRows(D), ptype = o.pump && o.pump.need ? ptypeOf(o.pump.len) : null;
   const nj = pp ? Object.assign({}, pp.job, { pad: B3P[o.plant] || 13, client: 'Naujas · ' + (o.client || ''), nw: true }) : null;
   const span = HZ * 30, X = (m) => ((Math.max(360, Math.min(END, m)) - 360) / span * B3W).toFixed(2), W = (a, b) => (Math.max(0, Math.min(END, b) - Math.max(360, a)) / span * B3W).toFixed(2);
-  const row = (lab, sub, jobs, hasNew) => {
+  let conflict = false;
+  const row = (key, l1, l2, jobs, hasNew, okKind) => {
     jobs = jobs.slice().sort((a, b) => a.a - b.a);
-    let r = `<div class="b3pr${hasNew ? ' nwr' : ''}"><span class="b3pl"><b>${esc(lab)}</b><br><span>${esc(sub)}</span></span><div class="b3pt">`;
+    let r = `<div class="b3pr${hasNew ? ' nwr' : ''}${okKind ? '' : ' nok'}" data-car="${esc(key)}"><span class="b3pl" title="${esc(l1 + ' · ' + l2)}"><b>${esc(l1)}</b><span>${esc(l2)}</span></span><div class="b3pt">`;
     jobs.forEach((j, k) => {
       const pv = jobs[k - 1], nx = jobs[k + 1];
       if (!pv || j.a - pv.b > PTRV + PGAP) r += `<i class="b3tv" style="left:${X(j.a - 60)}%;width:${W(j.a - 60, j.a)}%"></i>`;
       if (!nx || nx.a - j.b > PTRV + PGAP) r += `<i class="b3tv" style="left:${X(j.b)}%;width:${W(j.b, j.b + 60)}%"></i>`;
       else if (nx.a - j.b > PTRV) { r += `<i class="b3tv" style="left:${X(j.b)}%;width:${W(j.b, j.b + 60)}%"></i><i class="b3idle${(j.nw || nx.nw) ? ' nw' : ''}" style="left:${X(j.b + 60)}%;width:${W(j.b + 60, nx.a)}%" title="prastova ${hrs1(nx.a - j.b - 60)} val."></i>`; }
-      if (j.b > 360 && j.a < END) r += `<span class="b3job${j.nw ? ' nw' : ''}" style="left:${X(j.a)}%;width:${W(j.a, j.b)}%;${j.nw ? '' : 'background:' + (j.ap ? B3AP : (B3C[j.pad] || '#9AA0A7'))};color:${j.nw || (!j.ap && j.pad === 14) ? '#15171A' : '#fff'}" title="${esc(j.client)} ${hhmm(j.a)}–${hhmm(j.b)}">${esc(j.client)}${j.b > END ? ' → ' + hhmm(j.b) : ''}</span>`;
-      if (nx && j.b + PTRV > nx.a) r += `<i class="b3cf" style="left:${X(nx.a)}%;width:${W(nx.a, j.b + PTRV)}%"></i>`;
+      const nm = String(j.client || '').replace(/^Patvirt\. · /, ''), lab = (j.nw ? 'Naujas' : j.ap ? 'Patvirt. · ' + nm : nm) + ' · ' + hhmm(j.a) + '–' + hhmm(j.b);
+      if (j.b > 360 && j.a < END) r += `<span class="b3job${j.nw ? ' nw' : ''}${j.ap ? ' ap' : ''}" ${j.nw ? `data-drag="${i}"` : ''} style="left:${X(j.a)}%;width:${W(j.a, j.b)}%;${j.nw ? '' : '--c:' + (B3C[j.pad] || '#9AA0A7')};color:${j.nw || j.pad === 14 ? '#15171A' : '#fff'}" title="${esc(lab)}${j.nw ? ' – tempkite: į šonus – laikas, aukštyn / žemyn – kitas siurblys' : ''}">${esc(lab)}</span>`;
+      if (nx && j.b + PTRV > nx.a) { r += `<i class="b3cf" style="left:${X(nx.a)}%;width:${W(nx.a, j.b + PTRV)}%"></i>`; if (j.nw || nx.nw) conflict = true; }
     });
     return r + '</div></div>';
   };
+  const lab1 = (r) => ptLab(r.type) + ' · ' + (r.hired ? 'samdomas' : r.car);
+  const lab2 = (r, mine) => (r.hired ? 'samdomas' : r.c3 ? 'C3' : (r.owner || 'kitas')) + ' · ' + plen(r.type) + ' m' + (mine && pp.idle ? ' · prastova ' + hrs1(pp.idle) + ' val.' : '') + (mine && !r.hired && !pp.idle ? ' · be prastovos' : '');
   let h = '', list = Array.from(rows.values()).filter((r) => r.jobs.length || (pp && r.car === pp.car));
-  list.sort((x, y) => (x.car === 'samdomas') - (y.car === 'samdomas') || (y.c3 - x.c3) || x.car.localeCompare(y.car)).forEach((r) => { const mine = pp && r.car === pp.car; h += row(r.car, r.car === 'samdomas' ? 'patvirtinti' : (r.type || '') + ' · ' + (r.c3 ? 'C3' : (r.owner || '').slice(0, 10)) + (mine && pp.idle ? ' · prastova ' + hrs1(pp.idle) + ' val.' : ''), mine ? r.jobs.concat([nj]) : r.jobs, mine); });
-  if (pp && pp.car === 'samdomas') h += row('samdomas', pp.ptype + ' · +' + PHIRE + ' € atvykimas', [nj], true);
-  const free = Array.from(rows.values()).filter((r) => r.c3 && !r.jobs.length && r.car !== 'samdomas' && !(pp && r.car === pp.car));
-  if (free.length) h += `<span class="muted" style="font-size:11.5px">Laisvi C3 siurbliai visą dieną: ${free.map((r) => esc(r.car + ' ' + (r.type || ''))).join(', ')}</span>`;
-  if (!h) h = '<span class="muted" style="font-size:12px">Šią dieną siurbliai nedirba.</span>';
-  return { html: h, car: pp ? pp.car : null };
+  list.sort((x, y) => (x.hired - y.hired) || (y.c3 - x.c3) || x.car.localeCompare(y.car)).forEach((r) => { const mine = pp && r.car === pp.car; h += row(r.car, lab1(r), lab2(r, mine), mine ? r.jobs.concat([nj]) : r.jobs, mine, !ptype || (r.hired ? ptLab(r.type) === ptype : r.c3 && sameKind(r.type, ptype))); });
+  const free = Array.from(rows.values()).filter((r) => r.c3 && !r.jobs.length && !r.hired && !(pp && r.car === pp.car));
+  free.forEach((r) => { if (ptype && sameKind(r.type, ptype)) h += row(r.car, lab1(r), lab2(r) + ' · laisvas', [], false, true); });
+  if (pp && pp.car === 'samdomas') h += row('samdomas', pp.ptype + ' · samdomas', 'samdomas · ' + plen(pp.ptype) + ' m · +' + PHIRE + ' € atvykimas', [nj], true, true);
+  else if (pp) h += row('samdomas', (ptype || '') + ' · samdomas', 'naujas samdomas · +' + PHIRE + ' € (tempkite čia)', [], false, true);
+  if (!h) return { html: '<span class="muted" style="font-size:12px">Šią dieną siurbliai nedirba.</span>', car: null };
+  const hl = []; for (let hh = 6; hh <= 6 + HZ / 2; hh += 2) hl.push(hh);
+  h += `<div class="b3pr ax"><span class="b3pl"></span><div class="b3axis">${hl.map((x) => `<span style="left:${((x - 6) / (HZ / 2) * 100).toFixed(2)}%">${String(x % 24).padStart(2, '0')}</span>`).join('')}</div></div>`;
+  const others = free.filter((r) => !(ptype && sameKind(r.type, ptype)));
+  if (others.length) h += `<span class="muted" style="font-size:11.5px">Kiti laisvi C3 siurbliai: ${others.map((r) => esc(ptLab(r.type) + ' · ' + r.car)).join(', ')}</span>`;
+  if (conflict) h += `<div class="warn" style="font-size:12.5px">Naujas užsakymas persidengia su kitu šio siurblio darbu (raudona) – reikės kito siurblio arba kito laiko.</div>`;
+  if (pp && pp.forceFail) h += `<div class="warn" style="font-size:12.5px">Pasirinktas siurblys šiuo laiku užimtas – parinktas kitas.</div>`;
+  return { html: `<div class="b3pumps" data-i="${i}" data-hz="${HZ}">${h}</div>`, car: pp ? pp.car : null };
 }
-function b3chart(C, nn, tag, reqAbs, selAbs, newHere, D, HZ, win) {
+function b3chart(C, nn, tag, reqAbs, selAbs, newHere, D, HZ, win, DI) {
   const MX = Math.max(12, Math.max(...C.BT.slice(0, HZ).map((v, i) => v + nn[i])) + 4), y = (v) => v / MX * B3H, bw = B3W / HZ;
   const span = HZ * 30, X = (m) => ((m - 360) / span * B3W).toFixed(2);
   let bars = '';
@@ -322,8 +339,8 @@ function b3chart(C, nn, tag, reqAbs, selAbs, newHere, D, HZ, win) {
   for (let i = 0; i < HZ; i++) {
     let yb = 0;
     C.pads.forEach((p) => { const v = D.slots[p][i]; if (v) { bars += `<i class="b3b" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px;background:${B3C[p]}"></i>`; yb += v; } });
-    C.pads.forEach((p) => { const v = D.ap[p][i]; if (v) { bars += `<i class="b3b ap" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px"></i>`; yb += v; } });
-    if (nn[i]) bars += `<i class="b3b nw" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(nn[i]).toFixed(1)}px"></i>`;
+    C.pads.forEach((p) => { const v = D.ap[p][i]; if (v) { bars += `<i class="b3b ap" title="patvirtinta čia · ${B3N[p]}" style="--c:${B3C[p]};left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px"></i>`; yb += v; } });
+    if (nn[i]) bars += `<i class="b3b nw" data-drag="${DI}" title="Naujas užsakymas – tempkite, kad pakeistumėte laiką" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(nn[i]).toFixed(1)}px"></i>`;
   }
   bars += `<i class="b3l" style="bottom:${y(C.own1).toFixed(1)}px"></i><span class="b3lt" style="top:${(B3H - y(C.own1) + 4).toFixed(1)}px">mazgo ${C.own1}</span>`;
   if (C.own2 > C.own1) bars += `<i class="b3l d" style="bottom:${y(C.own2).toFixed(1)}px"></i><span class="b3lt" style="bottom:${(y(C.own2) + 3).toFixed(1)}px">+ pervaž. iš kitų mazgų iki ${C.own2}</span>`;
@@ -345,7 +362,7 @@ function b3chart(C, nn, tag, reqAbs, selAbs, newHere, D, HZ, win) {
   const hl = []; for (let h = 6; h <= 6 + HZ / 2; h += 2) hl.push(h);
   return `<div class="b3c-t"><span class="eb muted">${tag}</span></div>
     <div class="b3c-hd"><span>betonvežiai, vnt.<br>↓</span><span class="o">papildoma<br>kaina, € ↓</span></div>
-    <div class="b3c-ch"><div class="b3ax" style="height:${B3H}px">${ax}</div><div class="b3pl2" style="height:${B3H}px">${bars}</div><div class="b3rs" style="height:${B3H}px">${rs}</div></div>
+    <div class="b3c-ch"><div class="b3ax" style="height:${B3H}px">${ax}</div><div class="b3pl2" data-i="${DI}" data-hz="${HZ}" style="height:${B3H}px">${bars}</div><div class="b3rs" style="height:${B3H}px">${rs}</div></div>
     <div class="b3axrow"><i></i><div class="b3axis">${hl.map((h) => `<span style="left:${((h - 6) / (HZ / 2) * 100).toFixed(2)}%">${String(h % 24).padStart(2, '0')}</span>`).join('')}</div><i></i></div>`;
 }
 function b3scroll() { $$('.b3opts').forEach((el) => { const p = el.querySelector('[aria-pressed="true"]'); if (p) el.scrollLeft = Math.max(0, p.offsetLeft - el.offsetLeft - 160); }); }
@@ -374,12 +391,12 @@ function b3cHTML(o, oid, i, done) {
   if (q > 100) h += `<div class="note">Betonavimas virš 100 m³ – reikia nepertraukiamo betonavimo plano (atsakingi mazgo darbuotojai).</div>`;
   // grafikas, laisvų juosta, siurbliai – visada matomi
   const tripsN = view === 'V' ? Object.values(D.trips).reduce((a, b) => a + b, 0) + Object.values(D.apTrips).reduce((a, b) => a + b, 0) : (D.trips[view] || 0) + (D.apTrips[view] || 0);
-  h += b3chart(cur, cur.nn, `Betonvežiai · ${nm} · kiti reisai ${tripsN}${newHere ? ' · naujas ' + s.n + ' · pasirinkta ' + hhmm(sel) : ''}`, reqAbs, sel, newHere, D, HZ, win);
+  h += b3chart(cur, cur.nn, `${D.forecast ? 'Prognozė · ' : ''}Betonvežiai · ${nm} · kiti reisai ${tripsN}${newHere ? ' · naujas ' + s.n + ' · pasirinkta ' + hhmm(sel) : ''}`, reqAbs, sel, newHere, D, HZ, win, i);
   let cells = '';
   for (let hc = 0; hc < HZ / 2; hc++) { const need = Math.max(cur.BT[2 * hc] + cur.nn[2 * hc], cur.BT[2 * hc + 1] + cur.nn[2 * hc + 1]), free = cur.own1 - need; const c = free >= 0 ? 'g' : need <= cur.own2 ? 'y' : 'r'; cells += `<div class="${c}">${free >= 0 ? '+' + free : '−' + (-free)}</div>`; }
   h += `<span class="eb muted">Laiko juosta · turime laisvų (+) arba trūksta (−)</span><div class="b3axrow"><i></i><div class="b3hrs" style="grid-template-columns:repeat(${HZ / 2},1fr)">${Array.from({ length: HZ / 2 }, (_, k) => `<span>${String((6 + k) % 24).padStart(2, '0')}</span>`).join('')}</div><i></i></div><div class="b3axrow"><i></i><div class="b3strip" style="grid-template-columns:repeat(${HZ / 2},1fr)">${cells}</div><i></i></div>`;
-  const pp = b3pumps(D, o, sel, s, HZ, newHere ? cur.pp : null);
-  h += `<span class="eb muted">Siurbliai · atvažiavimas 60 min, pervažiavimas tarp užsakymų 60 min · prastova (oranžinė) – mūsų kaštai</span><div class="b3pumps">${pp.html}</div>`;
+  const pp = b3pumps(D, o, sel, s, HZ, newHere ? cur.pp : null, i);
+  h += `<span class="eb muted">Siurbliai · atvažiavimas 60 min, pervažiavimas tarp užsakymų 60 min · prastova (oranžinė) – mūsų kaštai</span>${pp.html}`;
   const pc = newHere && cur.pp ? cur.pp.cost : 0, tparts = [];
   if (cur.T) tparts.push(`pervažiuoja ${cur.T} C3 betonvežiai iš kitų mazgų (${cur.T} × ${TRF} €)`);
   if (cur.H.n) { const hrs = cur.H.lv.reduce((a, l) => a + l.hrs, 0); tparts.push(`samdomi ${cur.H.n} betonv. (${cur.H.n} × 200 + ${hrs} val. × 60)`); }
@@ -388,7 +405,7 @@ function b3cHTML(o, oid, i, done) {
   if (tparts.length) cl = `<b class="bad">${nm} · ${hhmm(sel)}: ${sp(cur.cost)} €</b> – ${tparts.join(' + ')}.${newHere ? ` Naujas užsakymas prideda <b>${sp(cur.add)} €</b>.` : ''}`;
   else cl = `<b class="okt">${nm} · ${hhmm(sel)}:</b> užtenka savų betonvežių${cur.pp ? ' ir siurblio ' + esc(cur.pp.car) : ''}${newHere ? ' – naujas užsakymas telpa be papildomų kaštų.' : '.'}`;
   h += `<div class="b3cost">${cl}<br><span class="muted">Siurblio atvykimas ir darbo valandos išrašomi klientui; prastovos – ne, todėl jos yra mūsų kaštai.</span></div>`;
-  h += `<div class="legend">${window.BPDB.B3PADS.map((p) => `<span><i style="background:${B3C[p]}"></i>${B3N[p]}</span>`).join('')}<span><i style="background:${B3AP}"></i>patvirtinta čia</span><span><i style="background:#F5C518;box-shadow:inset 0 0 0 1px #15171A"></i>naujas užsakymas</span><span><i style="border-top:2px solid #1E8A5A;height:0"></i>mazgo C3</span><span><i style="border-top:2px dashed #1E8A5A;height:0"></i>+ pervažiuojantys</span><span><i class="b3env-i"></i>samdyti / prastova (apmokami)</span><span><i style="background:#D2452F;opacity:.6"></i>persidengia</span></div>`;
+  h += `<div class="legend">${window.BPDB.B3PADS.map((p) => `<span><i style="background:${B3C[p]}"></i>${B3N[p]}</span>`).join('')}<span><i class="lg-ap"></i>patvirtinta čia (mazgo spalva, brūkšniuota)</span><span><i style="background:#F5C518;box-shadow:inset 0 0 0 1px #15171A"></i>naujas užsakymas</span><span><i style="border-top:2px solid #1E8A5A;height:0"></i>mazgo C3</span><span><i style="border-top:2px dashed #1E8A5A;height:0"></i>+ pervažiuojantys</span><span><i class="b3env-i"></i>samdyti / prastova (apmokami)</span><span><i style="background:#D2452F;opacity:.6"></i>persidengia</span></div>`;
   return h + '</div>';
 }
 // Pasirinktas laikas (minutės nuo 06:00), tinkamumas, siurblys – B3c, jei yra DB, kitaip senasis modelis.
@@ -450,10 +467,11 @@ const TOOL = {
       uzsakovas: { type: ['object', 'null'], properties: { vardas: { type: 'string' }, imone: { type: 'string' }, el_pastas: { type: ['string', 'null'] }, tel: { type: ['string', 'null'] } }, description: 'Tikrasis užsakovas, jei laišką PERSIUNTĖ kitas asmuo (Fw:/Fwd:, „From: … Sent: …“ citata, persiuntėjas iš kitos įmonės, pvz. ESSPO). Kontaktus perrašyk iš persiųsto laiško. Jei laišką rašė pats užsakovas – null.' },
       persiuntejas: { type: ['object', 'null'], properties: { vardas: { type: 'string' }, imone: { type: 'string' }, el_pastas: { type: ['string', 'null'] } }, description: 'Kas persiuntė laišką (jei persiųstas). Kitaip null.' },
       klausimas_klientui: { type: ['string', 'null'], description: 'TIK jei nėra datos, kiekio ar markės ir jų negalima nustatyti iš laiško, kitų kliento laiškų ar istorijos. Neklausk laiko, objekto (imk iš istorijos), siurblio, slankumo, aplinkos klasių, ar tikrai tokia markė. Kitaip null.' },
-      papildomas_tekstas: { type: ['string', 'null'], description: 'Neprivalomas 1–2 sakinių profesionalus papildymas atsakymui (pvz. dėl fibros, kristalų, lėtiklio, mokėtojo).' },
-      atsakymas_ne_uzsakymui: { type: ['string', 'null'], description: 'Tik tipui ne_uzsakymas: trumpas profesionalus atsakymas be pasisveikinimo ir parašo, arba null, jei atsakyti nereikia.' },
+      papildomas_tekstas: { type: ['string', 'null'], description: 'Neprivalomas 1–2 sakinių papildymas atsakymui (pvz. dėl fibros, lėtiklio, mokėtojo). NEkartok objekto, markės, priedų, kainų ar laiko (jie lentelėje), nerašyk „laikome“, „manome“, „jei netinka – praneškite“.' },
+      atsakymas_ne_uzsakymui: { type: ['string', 'null'], description: 'Tik tipui ne_uzsakymas: trumpas profesionalus atsakymas be pasisveikinimo ir parašo, arba null, jei atsakyti nereikia. KIEKVIENAS faktas / įkainis – ATSKIRA EILUTĖ, pvz. „PUMI 28 (28 m): atvykimas 180 €, darbas 80 €/val. (min. 2 val.)“. Viena aiški kaina, be „tikslią kainą pateiksime vėliau“. Prašymas klientui – atskira eilutė pabaigoje.' },
       paaiskinimas: { type: 'string', description: 'Trumpai: iš kurių laiško vietų paimti duomenys ir kas neaišku. Rašyk dalykiškai, be pasiteisinimų (ne „neprisigalvojau“, „neturiu“), – ką radai ir ką darai.' },
-      sprendimas: { type: 'string', description: 'VISADA: konkretus siūlomas sprendimas vadybininkui, net jei duomenų trūksta. Pvz.: „Siūlau siurblio įkainį imti iš kainoraščio (Pumi 28 – X €/val.) ir atsakyme paklausti objekto vietos“. Jei yra vadybininko pastaba (P1…), pirmiausia atsakyk į ją: ką padarei arba ką siūlai daryti.' }
+      sprendimas: { type: 'string', description: 'VISADA: konkretus siūlomas sprendimas vadybininkui – iki 4 trumpų sakinių, kiekvienas atskira mintis, be pasikartojimų su laukais. Atsakymų į vadybininko pastabas (P1…) čia NErašyk – jie eina į atsakymai_i_pastabas.' },
+      atsakymai_i_pastabas: { type: 'array', items: { type: 'object', properties: { nr: { type: 'integer', description: 'Pastabos numeris (1 = P1)' }, tekstas: { type: 'string', description: 'Trumpas atsakymas į tą pastabą (1–3 sakiniai). Jei pakeitei laukus – pabaigoje „Pakeista: …“.' } }, required: ['nr', 'tekstas'] }, description: 'Atsakymai į kiekvieną vadybininko pastabą (P1, P2…), kaip pokalbyje. Jei pastabų nėra – tuščias masyvas.' }
     },
     required: ['tipas', 'santrauka', 'tikrumas', 'uzsakymai', 'truksta', 'paaiskinimas', 'sprendimas']
   }
@@ -481,6 +499,9 @@ function sysPrompt() {
     'KLIENTO TRANSPORTAS: jei klientas mini savo transporto priemonę (savivartis, dumperis, „pasiimsime patys“, savas betonvežis) – pristatymas savivartis ir kliento_transportas = priemonė; sąlygos EXW (kaina be pristatymo).',
     'PERSIŲSTI LAIŠKAI: jei laišką persiuntė kitas asmuo (pvz. ESSPO darbuotojas persiuntė kliento užsakymą) – užpildyk uzsakovas (tikrasis klientas su kontaktais iš persiųsto laiško) ir persiuntejas. Atsakymas eis užsakovui, persiuntėjui – kopija. kalba – užsakovo kalba.',
     'ILGI GRAFIKAI (> 8 eilučių): laukus pildyk trumpai – pastabos iki 60 simbolių, adresą kartok tik kai keičiasi.',
+    'SIURBLIO MINIMALI APMOKAMA TRUKMĖ – 2 val.',
+    'ATSAKYMO TEKSTAS KLIENTUI: kiekvienas faktas ar įkainis – atskira eilutė, trumpos pastraipos; nekartok to, kas užsakymo lentelėje (objektas, markė, priedai, kaina); nerašyk „laikome“, „manome“; jokio „tikslią kainą pateiksime vėliau“ – visada viena aiški kaina.',
+    'VADYBININKO PASTABOS (P1, P2…): į kiekvieną atsakyk atskirai lauke atsakymai_i_pastabas (kaip pokalbyje), ne sprendime.',
     'Rašyk lietuviškai, dalykiškai.'
   ].join('\n');
 }
@@ -603,7 +624,11 @@ const WD_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
 const wdL = (d) => { if (LANG !== 'en') return wd(d); const t = new Date(d + 'T12:00:00'); return isNaN(t) ? '' : WD_EN[t.getDay()]; };
 const TR_MED = 65; // transportas €/reisą (mediana iš sąskaitų, jei DB neįkelta)
 const isClientTr = (o) => o.mode === 'savivartis';
-const num = (v) => v != null && v !== '' && Number(v) > 0 ? Number(v) : null;
+const pnum = (v) => { if (v == null || v === '') return null; const x = Number(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(x) ? x : null; };
+const num = (v) => { const x = pnum(v); return x != null && x > 0 ? x : null; };
+const f2 = (x) => x == null ? '' : Number(x).toFixed(2).replace('.', ',');
+const PMIN = 2; // siurblio minimali apmokama trukmė, val.
+const pumpHrs = (h) => Math.max(PMIN, Math.ceil(h || 0));
 // Sąlygos: ddp – kaina su pristatymu; sep – betonas + transportas atskirai (€/reisą); exw – kliento transportas.
 function defTerms(o, r) {
   if (isClientTr(o)) return 'exw';
@@ -632,9 +657,10 @@ function clientPrice(r, o) { const pr = DBX() && r ? window.BPDB.price(r.code, o
 function suggestPrice(r, o) {
   const t = termsOf(o, r), pq = DBX() && r ? window.BPDB.price(r.code, o.client) : null, b = (pq && pq.byT) || {};
   const want = t === 'ddp' ? 'DDP' : 'EXW', other = t === 'ddp' ? 'EXW' : 'DDP';
-  if (b[want]) return { v: b[want].p, src: 'ankstesnės sąlygos, ' + want + ', ' + Math.round(b[want].q) + ' m³', need: false };
-  if (b['?']) return { v: b['?'].p, src: 'ankstesnės sąlygos (sąlygos nenurodytos), ' + Math.round(b['?'].q) + ' m³', need: false };
-  if (b[other]) return { v: r.price, src: 'kainoraštis – kliento kaina tik ' + other + ' (' + eur(b[other].p) + ')', need: true };
+  const sane = (x) => x && x.p >= r.cost * 0.5 && x.p <= r.price * 3;
+  if (b[want] && sane(b[want])) return { v: b[want].p, src: 'ankstesnės sąlygos, ' + want + ', ' + Math.round(b[want].q) + ' m³', need: false };
+  if (b['?'] && sane(b['?'])) return { v: b['?'].p, src: 'ankstesnės sąlygos (sąlygos nenurodytos), ' + Math.round(b['?'].q) + ' m³', need: false };
+  if (b[other] && sane(b[other])) return { v: r.price, src: 'kainoraštis – kliento kaina tik ' + other + ' (' + eur(b[other].p) + ')', need: true };
   return { v: r.price, src: 'kainoraštis', need: true };
 }
 const manPrice = (o) => num(o.price);
@@ -648,6 +674,8 @@ function priceNeed(o) {
   return why.length ? why : false;
 }
 const finalPrice = (o, r) => manPrice(o) != null ? manPrice(o) : suggestPrice(r, o).v;
+// Kainos patikra: mažiau už savikainą arba > ±30 % nuo siūlomos – „Patikrinkite kainą“.
+function priceOdd(o) { const r = recipeById(o.recipeId); if (!r || o.action === 'atsaukti') return null; const v = finalPrice(o, r), sg = suggestPrice(r, o).v; if (v < r.cost) return 'mažesnė už savikainą (' + f2(r.cost) + ')'; if (sg && Math.abs(v - sg) / sg > 0.3) return 'skiriasi nuo siūlomos (' + f2(sg) + ') daugiau nei 30 %'; return null; }
 function orderLine(o, tp) {
   const r = recipeById(o.recipeId), ch = tp;
   const t = ch ? fmt(ch.Sm) : (o.time || '[laikas]');
@@ -664,7 +692,8 @@ function orderLine(o, tp) {
     else if (t === 'exw') lines.push(TX('Kaina: ', 'Price: ') + eur(v) + TX(' be PVM, EXW ', ' excl. VAT, EXW ') + PLANTS[o.plant].name + TX(' (kliento transportas)', ' (customer transport)'));
     else { const tk = trKain(o), n = Math.max(1, Math.ceil((Number(o.qty) || 0) / TRIP - 1e-9)); lines.push(TX('Betonas: ', 'Concrete: ') + eur(v) + TX(' be PVM; transportas: ', ' excl. VAT; transport: ') + String(tk.v.toFixed(2)).replace('.', ',') + TX(' €/reisą (', ' €/trip (') + n + TX(' reis.)', ' trips)')); }
   }
-  if (o.mode !== 'savivartis' && o.pump && o.pump.need) { const pk = pumpKain(o); lines.push(pk ? TX('Siurblys ', 'Pump ') + pk.lab + TX(': atvykimas ', ': arrival ') + pk.atv + TX(' €, darbas ', ' €, work ') + pk.val + TX(' €/val. be PVM', ' €/h excl. VAT') : TX('Siurblio ' + (o.pump.len || '') + ' m kainą patvirtinsime atskirai.', 'The price of the ' + (o.pump.len || '') + ' m pump will be confirmed separately.')); }
+  if (o.mode !== 'savivartis' && o.pump && o.pump.need) { const pk = pumpKain(o); lines.push(pk ? TX('Siurblys ', 'Pump ') + pk.lab + TX(': atvykimas ', ': arrival ') + f2(pk.atv) + TX(' €, darbas ', ' €, work ') + f2(pk.val) + TX(' €/val. (min. ' + PMIN + ' val.) be PVM', ' €/h (min. ' + PMIN + ' h) excl. VAT') : TX('Siurblio ' + (o.pump.len || '') + ' m kainą patvirtinsime atskirai.', 'The price of the ' + (o.pump.len || '') + ' m pump will be confirmed separately.')); }
+  if (o.mode !== 'savivartis' && o.action !== 'atsaukti') lines.push(TX('Papild. val.: betonvežio laukimas objekte – ', 'Extra hour: truck waiting on site – ') + f2(num(o.papVal) || PAPILD_VAL) + TX(' €/val.', ' €/h'));
   return { text: lines.join('\n'), win: o.win && WIN[o.win] && ch ? { lab: WIN[o.win][2], got: t, date: o.date } : null, changed: ch && o.time && hm(o.time) != null && ch.Sm !== hm(o.time) ? { asked: o.time, got: t, why: ch.ok === false ? '' : (ch.cap ? (ch.cap.opts[0].why || []).join(', ') : (hm(o.time) + 360 - (Number(o.travel) || 40) - LOAD < 360 ? 'per anksti krauti – mazgas pradeda 06:00' : '')) } : null };
 }
 // Ar vadybininkas (ar BP) užpildė viską, ko reikia patvirtinimui: data, kiekis, receptas visiems tvirtinamiems užsakymams.
@@ -680,7 +709,7 @@ function genReply(id) {
   LANG = R.kalba === 'en' ? 'en' : 'lt';
   try {
   const hello = TX('Laba diena,\n\n', 'Hello,\n\n');
-  if (R.tipas === 'ne_uzsakymas') return R.atsakymas_ne_uzsakymui ? hello + R.atsakymas_ne_uzsakymui + '\n\n' + sig(L) : '';
+  if (R.tipas === 'ne_uzsakymas') return R.atsakymas_ne_uzsakymui ? hello + R.atsakymas_ne_uzsakymui + '\n\n' + sig(L) + '\n\n— ' + TX('Paruošta su BetonPro', 'Prepared with BetonPro') : '';
   const ai = apprIdx(id), live = E.orders.map((o, i) => ({ o, i })).filter((x) => !ai.has(x.i));
   const skipped = live.filter((x) => isSkip(id, x.o, x.i) && x.o.action !== 'atsaukti');
   const actX = live.filter((x) => x.o.action !== 'atsaukti' && !isSkip(id, x.o, x.i));
@@ -718,6 +747,7 @@ function orderProbs(id, o, i) {
   if (!o.recipeId) p.push({ f: 'rcp', t: 'neparinktas receptas' });
   const tp = timePlan(o, id + ':' + i); if (tp && !tp.ok) p.push({ f: 'time', t: tp.why.join(', ') });
   const pn = priceNeed(o); if (pn && !o.priceOk) p.push({ f: 'price', t: 'patvirtinkite ' + pn.join(', ') + ' kainą (kainoraštis)' });
+  const od = priceOdd(o); if (od && !o.priceChk) p.push({ f: 'price', t: 'patikrinkite kainą: ' + f2(finalPrice(o, recipeById(o.recipeId))) + ' €/m³ – ' + od });
   return p;
 }
 function status(id) {
@@ -789,7 +819,8 @@ function tagOf(L) {
   if (R && R.tipas === 'naujas') lab = '+ Naujas užsakymas' + (R.kalba && R.kalba !== 'lt' ? ' · ' + R.kalba.toUpperCase() : '');
   if (R && R.tipas === 'grafikas') lab = 'Grafikas' + (E && E.orders.length ? ' · ' + E.orders.length + ' užs.' : '');
   let c = 'y';
-  if (S.closed && S.closed[L.id]) { c = 'n'; lab = 'Uždaryta'; }
+  if (S.sent && S.sent[L.id]) { c = 'g'; lab = '✓ Atsakyta'; }
+  else if (S.closed && S.closed[L.id]) { c = 'n'; lab = 'Uždaryta'; }
   else if (S.rej[L.id]) { c = 'n'; lab = 'Atmesta'; }
   else if (S.appr[L.id] && !S.appr[L.id].partial) { c = 'g'; lab = '✓ Patvirtinta'; }
   else if (S.appr[L.id]) { c = 'y'; lab = 'Dalinai patvirtinta'; }
@@ -800,8 +831,9 @@ function tagOf(L) {
 }
 function renderList() {
   const q = quickStats(), cnt = (f) => LETTERS.filter((L) => f === 'all' ? true : f === 'todo' ? isPending(L.id) : f === 'done' ? status(L.id).k === 'ok' : !S.res[L.id] || !S.res[L.id].tipas).length;
-  $('#strip').innerHTML = [['all', 'Gauti'], ['todo', 'Laukia peržiūros'], ['done', 'Patvirtinti'], ['none', 'Neanalizuoti']].map(([k, l]) => `<button type="button" class="ktile" data-f="${k}" aria-pressed="${S.filter === k}"><span class="n">${cnt(k)}</span><span class="eb">${l}</span></button>`).join('') +
-    `<div class="kpi"><span class="n">${q.n ? q.pct + ' %' : '–'}</span><span><span class="eb">Priimama iš karto</span><span class="muted">${q.n ? q.quick.length + ' iš ' + q.n + ' · taisyti ' + q.fix.length + ' · klausti ' + q.ask.length + (q.err.length ? ' · klaida ' + q.err.length : '') : 'dar neanalizuota'}</span></span></div>`;
+  const nOk = cnt('done'), nAll = Math.max(1, LETTERS.length), nWait = Math.max(0, cnt('todo') - cnt('none'));
+  $('#strip').innerHTML = `<div class="segf" role="group" aria-label="Filtrai">${[['all', 'Gauti'], ['todo', 'Laukia peržiūros'], ['done', 'Patvirtinti'], ['none', 'Neanalizuoti']].map(([k, l]) => `<button type="button" data-f="${k}" aria-pressed="${S.filter === k}">${l} <b>${cnt(k)}</b></button>`).join('')}</div>
+    <div class="kprog" title="Žalia – patvirtinta ${nOk}; geltona – BP perskaitė, laukia ${nWait}"><div class="kbar"><i class="g" style="width:${(nOk / nAll * 100).toFixed(1)}%"></i><i class="y" style="width:${(nWait / nAll * 100).toFixed(1)}%"></i><span class="shim"></span></div><div class="kpl"><span>Priimama iš karto <b>${q.n ? q.pct + ' %' : '–'}</b></span><span>${q.n ? q.quick.length + ' iš ' + q.n + (q.fix.length ? ' · taisyti ' + q.fix.length : '') : 'dar neanalizuota'}</span></div></div>`;
   $('#filters').innerHTML = `<div class="lh"><span class="eb">Gautieji · uzsakymai@</span><span class="mono muted">${LETTERS.length}</span></div>
     <div class="lsearch"><input type="search" id="lq" value="${esc(S.lq || '')}" placeholder="Ieškoti: klientas, objektas, markė" aria-label="Ieškoti laiškų"></div>
     <div class="ltest"><button type="button" class="flt" id="runAll" ${key() ? '' : 'disabled'} title="Perskaityti visus neanalizuotus laiškus su AI">${BP} Analizuoti visus</button><button type="button" class="flt" data-f="bad" aria-pressed="${S.filter === 'bad'}">✗ Blogai</button><button type="button" class="flt" data-f="unev" aria-pressed="${S.filter === 'unev'}">Neįvertinti</button></div>`;
@@ -833,6 +865,14 @@ function chartHTML(base, nt, plant, lim, step) {
   <div class="axis"><span>06</span><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span></div>`;
 }
 // Atpažinti laiško fragmentai – geltonai (pagal užpildytus laukus).
+const sentences = (s) => String(s || '').split(/\n+|(?<=[.!?])\s+(?=[A-ZĄČĘĖĮŠŲŪŽ„(0-9])/).map((x) => x.trim()).filter(Boolean);
+// BP atsakymai į pastabas: iš atsakymai_i_pastabas; seniems rezultatams – sprendimas, prasidedantis „P1:“.
+function noteReplies(R) {
+  const m = {}; if (!R) return m;
+  (R.atsakymai_i_pastabas || []).forEach((a) => { if (a && a.nr) m[a.nr] = a.tekstas; });
+  if (!Object.keys(m).length) { const k = String(R.sprendimas || '').trim().match(/^P(\d+)\s*[:–-]\s*/); if (k) m[k[1]] = String(R.sprendimas).trim().slice(k[0].length); }
+  return m;
+}
 function markTerms(E) {
   const out = [];
   (E ? E.orders : []).forEach((o) => {
@@ -887,8 +927,9 @@ function renderDetail() {
       ${rd ? `<div class="lmsg-f">Geltonai pažymėta tai, ką ${BP} atpažino.</div>` : ''}</div></div>`;
   if (rd) {
     const tr = trukstaShown(L.id), li = [];
-    if (R.sprendimas) li.push(R.sprendimas);
-    String(R.paaiskinimas || '').split(/(?<=[.!?])\s+(?=[A-ZĄČĘĖĮŠŲŪŽ„])/).map((x) => x.trim()).filter(Boolean).slice(0, 4).forEach((x) => li.push(x));
+    const oldP = !(R.atsakymai_i_pastabas || []).length && /^P\d+\s*[:–-]/.test(String(R.sprendimas || '').trim());
+    if (!oldP) sentences(R.sprendimas).forEach((x) => li.push(x));
+    sentences(R.paaiskinimas).slice(0, 4).forEach((x) => li.push(x));
     if (tr.length) li.push('Trūksta: ' + tr.join('; '));
     if (R._err) li.push('Paskutinis bandymas nepavyko: ' + R._err);
     h += `<div class="sol"><b>Siūlomas sprendimas</b><ul>${li.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
@@ -899,7 +940,7 @@ function renderDetail() {
   else if (R._err && !R.tipas) h += `<div class="err">AI klaida: ${esc(R._err)} <button type="button" class="btn btn-sm" id="runOne">Bandyti dar kartą</button></div>`;
   if (R && R.tipas && ['grafikas', 'naujas', 'pakeitimas'].includes(R.tipas) && !(R.uzsakymai || []).length) h += `<div class="err"><b>${BP} atsakymas nepilnas</b> – atpažintas ${esc((TYPES[R.tipas] || {}).lab || R.tipas)}, bet užsakymų eilučių negrąžinta. <button type="button" class="btn btn-sm" id="rerun" ${key() ? '' : 'disabled'}>${BP} Skaityti iš naujo</button></div>`;
   h += `<div class="card pinfo"><span class="eb" style="font-weight:600;color:#15171A">Papildoma informacija</span>
-      ${notes.map((n, i) => `<div class="bub"><b class="badge">P${i + 1}</b> ${esc(n)}</div>`).join('')}
+      ${(() => { const nr = noteReplies(R); return notes.map((n, i) => `<div class="bub"><b class="badge">P${i + 1}</b> ${esc(n)}</div>` + (nr[i + 1] ? `<div class="bub-bp">${BP}<span>${sentences(nr[i + 1]).map(esc).join('<br>')}</span></div>` : busy[L.id] && i === notes.length - 1 ? `<div class="bub-bp">${BP}<span class="muted">skaito…</span></div>` : '')).join(''); })()}
       <div class="pinfo-r"><textarea id="noteTa" rows="1" aria-label="Papildoma informacija" placeholder="pvz.: skambino – siurblio reikia 36 m, pradžia 9:00" ${done ? 'disabled' : ''}>${esc(S.nd[L.id] || '')}</textarea><button type="button" class="btn" id="noteSend" ${done ? 'disabled' : ''}>Pateikti ${LOGO()}</button></div></div>`;
   if (E) {
     if (!E.orders.length && R && R.tipas !== 'ne_uzsakymas') h += `<div class="warn">Užsakymų nerasta.</div>`;
@@ -982,10 +1023,11 @@ function rcpBlockHTML(o, r, i, done, ro) {
   if (DBX() && o.client) { const same = window.BPDB.sameAddress ? window.BPDB.sameAddress(o.client, (o.address || '') + ' ' + (o.object || ''), '') : []; if (same && same.length) cm.push('vežta į ' + (o.object || 'šį objektą') + ' ' + same.length + ' k.'); }
   let h = `<div class="blk" data-f="price" id="rcp-${i}"><div class="blk-h"><b class="mono" style="font-size:15px;margin-right:6px">${esc(r.code)}</b>${pr}<span style="flex:1"></span><span class="eb okchip">${esc(badge)}</span>${done ? '' : XB(`data-rcpopen="${i}"`, 'Keisti receptą', false)}</div>
     <div class="blk-b"><div class="rp"><div class="rp-in"><label class="eb" for="pk-${i}">Kaina klientui, €/m³</label>
-      <div class="rp-r"><input id="pk-${i}" data-k="price" type="number" step="0.01" min="0" value="${manPrice(o) != null ? esc(o.price) : ''}" placeholder="${sg.v.toFixed(2)}" ${done ? 'disabled' : ''}><label><input type="radio" name="tr-${i}" data-k="terms" value="ddp" ${!exw ? 'checked' : ''} ${done || cl ? 'disabled' : ''}> DDP</label><label><input type="radio" name="tr-${i}" data-k="terms" value="sep" ${exw ? 'checked' : ''} ${done || cl ? 'disabled' : ''}> EXW</label></div>
+      <div class="rp-r"><input id="pk-${i}" data-k="price" type="text" inputmode="decimal" autocomplete="off" value="${manPrice(o) != null ? f2(manPrice(o)) : ''}" placeholder="${f2(sg.v)}" ${done ? 'disabled' : ''}><label><input type="radio" name="tr-${i}" data-k="terms" value="ddp" ${!exw ? 'checked' : ''} ${done || cl ? 'disabled' : ''}> DDP</label><label><input type="radio" name="tr-${i}" data-k="terms" value="sep" ${exw ? 'checked' : ''} ${done || cl ? 'disabled' : ''}> EXW</label></div>
       <span class="${v - r.cost > 0 ? 'okt' : 'bad'}" style="font-size:12px">marža <b class="mono">${n2(v - r.cost)} €/m³</b></span></div>
       <div class="rp-c">${pc('Kliento', pq && pq.client != null ? n2(pq.client) : '—', pq && pq.client != null ? Math.round(pq.clientQ) + ' m³' + (pq.type ? ' · ' + esc(pq.type) : '') : 'netiekta')}${pc('Vidutinė', pq ? n2(pq.avg) : '—', 'visų klientų')}${pc('Kainoraštis', n2(r.price))}${pc('Savikaina', n2(r.cost))}</div></div>
       ${cm.length ? `<span class="rcp-cm">${esc(cm.join(' · '))}</span>` : ''}
+      ${(() => { const od = priceOdd(o); return od ? (o.priceChk ? `<span class="okt" style="font-size:12.5px">✓ Kaina patikrinta ${done ? '' : `<button type="button" class="lnk" data-pricechk="${i}">atšaukti</button>`}</span>` : `<div class="pneed">⚠ Patikrinkite kainą: ${esc(f2(v))} €/m³ – ${esc(od)} ${done ? '' : `<button type="button" class="btn btn-sm btn-dark" data-pricechk="${i}">✓ Kaina teisinga</button>`}</div>`) : ''; })()}
       ${pn && pn.includes('betono') ? (o.priceOk ? `<span class="okt" style="font-size:12.5px">✓ Kaina patvirtinta ${done ? '' : `<button type="button" class="lnk" data-priceok="${i}">atšaukti</button>`}</span>` : `<div class="pneed">⚠ Betono kaina pagal kainoraštį – patvirtinkite arba įveskite savo ${done ? '' : `<button type="button" class="btn btn-sm btn-dark" data-priceok="${i}">✓ Tvirtinu kainą</button>`}</div>`) : ''}
     </div></div>`;
   return h;
@@ -997,14 +1039,13 @@ function trBlockHTML(o, r, i, done, tp) {
   const pc = (l, val, sm) => `<div class="pc"><span class="eb">${l}</span><b>${val}</b><small>${sm || '&nbsp;'}</small></div>`;
   const nT = Math.max(1, Math.ceil((Number(o.qty) || 0) / TRIP - 1e-9)), tk = trKain(o), pk = o.pump && o.pump.need ? pumpKain(o) : null;
   const hrsJ = tp && tp.pp && tp.pp.job ? (tp.pp.job.b - tp.pp.job.a) / 60 : null;
-  let cells = t === 'ddp' ? pc('Betonvežis', 'įskaičiuota', 'DDP') : pc('Betonvežio reisas', sp(tk.v) + ' €', nT + ' reis. = ' + sp(nT * tk.v) + ' € · ' + esc(tk.src));
-  if (o.pump && o.pump.need) cells += pk ? pc('Siurblio atvykimas', sp(pk.atv) + ' €', esc(pk.lab) + ' · ' + esc(pk.src)) + pc('Siurblio valanda', sp(pk.val) + ' €/val.', hrsJ ? '~' + String(Math.round(hrsJ * 10) / 10).replace('.', ',') + ' val. ≈ ' + sp(pk.val * Math.ceil(hrsJ)) + ' €' : esc(pk.src)) : pc('Siurblys', esc(ptypeOf(o.pump.len)), 'kainą patvirtinsime atskirai');
-  cells += pc('Betonvežio papild. val.', PAPILD_VAL + ' €/val.', 'kainoraštis');
-  let h = `<div class="blk" id="tr-${i}"><div class="blk-h"><b>Transporto kainos klientui</b><span style="flex:1"></span>${done ? '' : XB(`data-tropen="${i}"`, open ? 'Suskleisti' : 'Redaguoti transporto kainas', open)}</div><div class="blk-b"><div class="trg">${cells}</div>`;
-  if (open && !done) {
-    const inp = (k, v, ph) => `<input data-k="${k}" type="number" step="0.01" min="0" value="${v != null && v !== '' ? esc(v) : ''}" placeholder="${ph}">`;
-    h += `<div class="tr-ed">${t !== 'ddp' ? `<label><span class="eb">Reisas, €</span>${inp('trPrice', o.trPrice, tk.v.toFixed(2))}</label>` : ''}${pk ? `<label><span class="eb">Siurblio atvykimas, €</span>${inp('pAtv', o.pAtv, String(pk.atv))}</label><label><span class="eb">Siurblio valanda, €</span>${inp('pVal', o.pVal, String(pk.val))}</label>` : ''}</div>`;
-  }
+  const pv = num(o.papVal) || PAPILD_VAL;
+  const ed = open && !done, inp = (k, v, ph) => ed ? `<input data-k="${k}" type="text" inputmode="decimal" autocomplete="off" value="${num(v) != null ? f2(num(v)) : ''}" placeholder="${f2(pnum(ph))}" aria-label="${k}">` : '';
+  const cell = (l, val, sm, input) => `<div class="pc"><span class="eb">${l}</span><b>${val}</b><small>${sm || '&nbsp;'}</small>${input || ''}</div>`;
+  let cells = t === 'ddp' ? cell('Betonvežis', 'įskaičiuota', 'DDP') : cell('Betonvežio reisas', f2(tk.v) + ' €', nT + ' reis. = ' + sp(nT * tk.v) + ' € · ' + esc(tk.src), inp('trPrice', o.trPrice, tk.v));
+  if (o.pump && o.pump.need) cells += pk ? cell('Siurblio atvykimas', f2(pk.atv) + ' €', esc(pk.lab) + ' · ' + esc(pk.src), inp('pAtv', o.pAtv, pk.atv)) + cell('Siurblio valanda', f2(pk.val) + ' €/val.', hrsJ ? (Math.ceil(hrsJ) < PMIN ? 'min. ' + PMIN + ' val.' : '~' + Math.ceil(hrsJ) + ' val.') + ' = ' + sp(pk.val * pumpHrs(hrsJ)) + ' €' : 'min. ' + PMIN + ' val.', inp('pVal', o.pVal, pk.val)) : cell('Siurblys', esc(ptypeOf(o.pump.len)), 'kainą patvirtinsime atskirai');
+  cells += cell('Betonvežio papild. val.', f2(pv) + ' €/val.', num(o.papVal) ? 'įvesta' : 'kainoraštis', inp('papVal', o.papVal, PAPILD_VAL));
+  let h = `<div class="blk" id="tr-${i}"><div class="blk-h"><b>Transporto kainos klientui</b><span style="flex:1"></span>${done ? '' : XB(`data-tropen="${i}"`, open ? 'Baigti redaguoti' : 'Redaguoti transporto kainas', open)}</div><div class="blk-b"><div class="trg${ed ? ' ed' : ''}">${cells}</div>`;
   const trn = pn.filter((x) => x !== 'betono');
   if (trn.length) h += o.priceOk ? `<span class="okt" style="font-size:12.5px">✓ Kainos patvirtintos ${done ? '' : `<button type="button" class="lnk" data-priceok="${i}">atšaukti</button>`}</span>` : `<div class="pneed">⚠ ${esc(trn.join(', '))} kaina pagal kainoraštį – patvirtinkite ${done ? '' : `<button type="button" class="btn btn-sm btn-dark" data-priceok="${i}">✓ Tvirtinu</button>`}</div>`;
   return h + `</div></div>`;
@@ -1014,9 +1055,13 @@ function orderHTML(L, o, i, letterDone) {
   const actLab = { naujas: 'Naujas', keisti: 'Pakeitimas', atsaukti: 'Atšaukimas' }[o.action] || 'Naujas';
   const probs = done ? [] : orderProbs(L.id, o, i), tp = cancel ? null : timePlan(o, oid);
   const open = S.oopen[oid] != null ? S.oopen[oid] : (!done && probs.some((p) => p.f !== 'rcp' && p.f !== 'time' && p.f !== 'price'));
-  let h = `<section class="order" data-i="${i}" id="ord-${i}"><div class="order-h"><b class="onum">${i + 1}</b><span class="st ${cancel ? 'st-bad' : done ? 'st-ok' : ''}">${done ? 'Patvirtinta' : actLab}</span>
-    <span class="ohd">${orderHead(o, tp)}</span>${XB(`data-oopen="${i}"`, open ? 'Suskleisti užsakymą' : 'Išskleisti užsakymą', open)}</div>`;
+  const multi = ((S.ed[L.id] || {}).orders || []).length > 1;
+  const col = S.ocol && S.ocol[oid] != null ? S.ocol[oid] : (done || (multi && !probs.length));
+  const PEN = `<button type="button" class="xb${open ? ' on' : ''}" data-oopen="${i}" aria-label="Redaguoti užsakymo duomenis" title="Redaguoti užsakymo duomenis" aria-pressed="${!!open}" ${done ? 'disabled' : ''}><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 12l.6-2.6L9.4 2.6a1.2 1.2 0 011.7 0l.3.3a1.2 1.2 0 010 1.7L4.6 11.4z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>`;
+  let h = `<section class="order${col ? ' col' : ''}" data-i="${i}" id="ord-${i}"><div class="order-h"><b class="onum">${i + 1}</b><span class="st ${cancel ? 'st-bad' : done ? 'st-ok' : ''}">${done ? 'Patvirtinta' : actLab}</span>
+    <span class="ohd">${orderHead(o, tp)}</span>${col ? '' : PEN}${XB(`data-ocol="${i}"`, col ? 'Išskleisti užsakymą' : 'Suskleisti užsakymą', !col)}</div>`;
   if (probs.length) h += `<div class="oerr">${probs.map((p) => `<button type="button" class="oerr-b" data-jump="${i}:${p.f}">⚠ ${esc(p.t.charAt(0).toUpperCase() + p.t.slice(1))}</button>`).join('')}</div>`;
+  if (col) return h + '</section>';
   h += `<div class="order-b">`;
   if (open) {
     h += `<fieldset style="border:0;margin:0;padding:0" ${done ? 'disabled' : ''}><div class="grid-f">` +
@@ -1100,6 +1145,22 @@ function rcpRow(x, o, disabled, selectable) {
     <span class="rcp-l2">${price}<span>kainoraštis <b>${r.price.toFixed(2).replace('.', ',')} €/m³</b></span><span>savikaina <b>${r.cost.toFixed(2).replace('.', ',')} €/m³</b></span><span>marža ${(r.price - r.cost).toFixed(2).replace('.', ',')} €/m³</span></span>
     ${cm.length ? `<span class="rcp-cm">${esc(cm.join(' · '))}</span>` : ''}</button>`;
 }
+// El. laiškas su formatavimu: užsakymų eilutės „Etiketė: reikšmė“ – lentelė; kainos – nuorodos į recepto / transporto blokus.
+function mailHTML(text, id) {
+  const E = S.ed[id], ai = apprIdx(id), idx = E ? E.orders.map((o, i) => ({ o, i })).filter((x) => !ai.has(x.i) && x.o.action !== 'atsaukti' && !isSkip(id, x.o, x.i)).map((x) => x.i) : [];
+  let tk = 0;
+  const money = /(\d{1,3}(?:[  ]\d{3})*(?:,\d{2})?\s?€(?:\/(?:m³|val\.|h|reisą|trip))?)/g;
+  const linkify = (v, i, lab) => esc(v).replace(money, (m) => { const tr = /val|\/h|reis|trip/.test(m) || /Siurbl|Pump|Papild|Extra/i.test(lab); return `<a href="#" class="mlnk" data-jump="${i}:${tr ? 'tr' : 'price'}" title="Atidaryti redagavimui">${m}</a>`; });
+  return String(text || '').split(/\n{2,}/).map((b) => {
+    const ls = b.split('\n');
+    if (/^— /.test(b)) return `<p class="mfoot">${BP}<span>${esc(b.replace(/^— /, ''))}</span></p>`;
+    if (ls.length > 1 && ls.every((l) => { const k = l.indexOf(': '); return k > 0 && k < 45; })) {
+      const i = idx[tk++] != null ? idx[tk - 1] : idx[0];
+      return `<table class="mtb"><tbody>${ls.map((l) => { const k = l.indexOf(': '), lab = l.slice(0, k), v = l.slice(k + 2), b1 = /^(Data|Date|Betonas|Concrete)$/.test(lab) && !/€/.test(v); return `<tr><td>${esc(lab)}</td><td>${b1 ? '<b>' : ''}${linkify(v, i, lab)}${b1 ? '</b>' : ''}</td></tr>`; }).join('')}</tbody></table>`;
+    }
+    return `<p>${ls.map(esc).join('<br>')}</p>`;
+  }).join('');
+}
 // SMS – trumpas tekstas be formatavimo.
 function smsText(id) {
   const L = LETTERS.find((x) => x.id === id), R = S.res[id], E = S.ed[id]; if (!R || !E) return '';
@@ -1115,7 +1176,8 @@ function renderSide() {
   if (!E && R && R.tipas === 'ne_uzsakymas') { el.innerHTML = closed ? `<div class="note">Laiškas uždarytas – nerodomas „Laukia peržiūros“.</div><button type="button" class="btn btn-act" id="unclose"><span>Grąžinti į eilę</span><span>↺</span></button>` : `<button type="button" class="btn btn-go btn-act" id="closeL"><span>Atlikta – nerodyti</span><span aria-hidden="true">✓</span></button>`; return; }
   if (!E) { el.innerHTML = `<div class="card"><div class="card-b muted"><span>Atsakymas klientui atsiras, kai ${BP} perskaitys laišką arba užpildysite juodraštį ranka.</span></div></div>`; return; }
   const sms = E.fmt === 'sms', gen = sms ? smsText(L.id) : genReply(L.id);
-  const edited = E.reply != null, txt = edited ? E.reply : gen, stale = edited && E.replyBase !== gen && !done;
+  const edited = (E.reply != null || E.replyH != null) && !done, txt = done ? (done.reply || gen) : E.reply != null ? E.reply : gen, stale = edited && E.replyBase != null && E.replyBase !== gen;
+  const sentL = S.sent && S.sent[L.id];
   const subj = E.subj != null ? E.subj : 'Re: ' + String(L.subject || '').replace(/^(re|ats\.?|fwd?):\s*/i, '');
   const rc = E.rc || { tel: false, mail: L.channel === 'email', umail: true };
   const noReply = R && R.tipas === 'ne_uzsakymas' && !gen && !edited;
@@ -1123,7 +1185,7 @@ function renderSide() {
   const pend = E.orders.map((o, i) => ({ o, i })).filter((x) => !ai.has(x.i)), toApp = pend.filter((x) => !isSkip(L.id, x.o, x.i));
   toApp.forEach(({ o, i }) => orderProbs(L.id, o, i).forEach((p) => probs.push({ i, f: p.f, t: (i + 1) + ': ' + p.t })));
   const isQ = isQuestion(L.id), dis = done ? 'disabled' : '';
-  const row = (id, on, b, v, disabled) => `<label class="rcr${disabled ? ' off' : ''}"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} ${done || disabled ? 'disabled' : ''}><span class="badge">${b}</span><span class="mono">${esc(v)}</span></label>`;
+  const row = (id, on, b, v, disabled) => `<label class="rcr${disabled ? ' off' : ''}" title="${esc(v)}"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} ${done || disabled ? 'disabled' : ''}><span class="badge">${b}</span><span class="mono rcv">${esc(v)}</span></label>`;
   let h = `<div class="card"><div class="card-h"><span class="eb">Atsakymas klientui</span>${edited ? '<span class="badge" style="background:#FBEFB8">REDAGUOTA</span>' : `<span class="eb muted">${BP} paruošė</span>`}</div><div class="card-b sideb">`;
   if (noReply) h += `<div class="note">Atsakymas nesiunčiamas – ${BP} mano, kad atsakyti nereikia. Galite parašyti patys.</div><button type="button" class="btn btn-sm" id="writeOwn" ${dis}>Rašyti atsakymą</button>`;
   else {
@@ -1139,14 +1201,17 @@ function renderSide() {
     }
     h += `</div></div>`;
     if (!sms) h += `<div class="fl"><label for="subj" class="eb muted">2 · Tema</label><input id="subj" value="${esc(subj)}" ${dis}></div>`;
-    h += `<div class="fl"><span class="eb muted">${sms ? '2' : '3'} · Laiško turinys</span><div class="seg"><button type="button" class="segb" data-fmt="mail" aria-pressed="${!sms}" ${dis}>El. paštas</button><button type="button" class="segb" data-fmt="sms" aria-pressed="${sms}" ${dis}>SMS</button></div>
+    const dsms = done ? /^C3 Betonas:/.test(done.reply || '') : sms;
+    h += `<div class="fl"><span class="eb muted">${sms ? '2' : '3'} · Laiško turinys</span>${done ? `<span class="muted" style="font-size:12px">Išsaugotas ${dsms ? 'SMS' : 'el. laiškas'} (patvirtinta ${esc(done.at.slice(11, 16))}). Norėdami keisti – atšaukite patvirtinimą.</span>` : `<div class="seg"><button type="button" class="segb" data-fmt="mail" aria-pressed="${!sms}">El. paštas</button><button type="button" class="segb" data-fmt="sms" aria-pressed="${sms}">SMS</button></div>`}
       ${stale ? `<div class="warn">Laukai pakeisti po jūsų redagavimo – tekstas neatnaujintas. Paspauskite „Peržiūrėti pagal įvestus duomenis“.</div>` : ''}
-      <textarea id="replyTa" rows="${sms ? 5 : 16}" aria-label="Atsakymo klientui tekstas" ${done ? 'readonly' : ''}>${esc(txt)}</textarea>
+      ${dsms ? `<textarea id="replyTa" rows="5" aria-label="SMS tekstas" ${done ? 'readonly' : ''}>${esc(txt)}</textarea>` : `<div id="replyEd" class="mail${done ? ' ro' : ''}" ${done ? '' : 'contenteditable="true"'} role="textbox" aria-multiline="true" aria-label="El. laiško tekstas">${done ? (done.replyH || mailHTML(txt, L.id)) : (E.replyH != null ? E.replyH : mailHTML(txt, L.id))}</div>`}
       ${sms ? `<span class="muted" style="font-size:12px">${txt.length} simb. · trumpas tekstas be formatavimo</span>` : ''}
       ${edited && !done ? `<button type="button" class="lnk" id="replyReset2" style="align-self:flex-end">Grąžinti ${BP} tekstą</button>` : ''}</div>`;
   }
   h += `</div></div>`;
-  if (closed) {
+  if (closed && sentL) {
+    h += `<div class="okbox">Atsakyta ${esc(sentL.at.slice(11, 16))}. (Testas – laiškas klientui nesiunčiamas.)</div><button type="button" class="btn btn-act" id="unclose"><span>Grąžinti į eilę</span><span>↺</span></button>`;
+  } else if (closed) {
     h += `<div class="note">Laiškas uždarytas – nerodomas „Laukia peržiūros“.</div><button type="button" class="btn btn-act" id="unclose"><span>Grąžinti į eilę</span><span>↺</span></button>`;
   } else if (done) {
     h += `<div class="okbox">Patvirtinta ${esc(done.at.slice(11, 16))}. ${done.orders.length ? 'Į dienos planą įtraukta: ' + done.orders.map((o) => o.date + ' ' + fmt(o.S) + ' ' + PLANTS[o.plant].name + ' ' + o.qty + ' m³').join('; ') + '.' : 'Užsakymų į planą neįtraukta.'} ${done.cancelled ? done.cancelled : ''} (Testas – laiškas klientui nesiunčiamas.)</div>
@@ -1159,7 +1224,7 @@ function renderSide() {
     if (probs.length && !neu) h += `<div class="warn"><b>Prieš tvirtinant:</b>${probs.map((p) => `<button type="button" class="plink" data-jump="${p.i}:${p.f}">${esc(p.t)} →</button>`).join('')}</div>`;
     h += `<div class="acts">`;
     if (!noReply) h += `<button type="button" class="btn btn-act" id="replyFromFields" title="Sugeneruoti atsakymą iš įvestų duomenų"><span>Peržiūrėti pagal įvestus duomenis</span><span>↻</span></button>`;
-    if (neu) h += `<button type="button" class="btn btn-go btn-act" id="closeL"><span>${gen || edited ? 'Atlikta – nerodyti (atsakymas paruoštas)' : 'Atlikta – nerodyti'}</span><span aria-hidden="true">✓</span></button>`;
+    if (neu) h += gen || edited ? `<button type="button" class="btn btn-go btn-act" id="sendR"><span>Siųsti atsakymą klientui</span><span aria-hidden="true">→</span></button><button type="button" class="btn btn-act btn-ghost" id="closeL"><span>Uždaryti be atsakymo</span><span aria-hidden="true">✕</span></button>` : `<button type="button" class="btn btn-go btn-act" id="closeL"><span>Atlikta – nerodyti</span><span aria-hidden="true">✓</span></button>`;
     else {
       const n = toApp.filter((x) => x.o.action !== 'atsaukti').length, m = pend.filter((x) => x.o.action !== 'atsaukti').length;
       const lab = isQ ? 'Siųsti klausimą klientui' : E.orders.length && E.orders.every((o) => o.action === 'atsaukti') ? 'Patvirtinti atšaukimą' : m > 1 || n < m ? `Patvirtinti ${n} iš ${m} ir informuoti` : 'Patvirtinti ir informuoti klientą';
@@ -1267,9 +1332,9 @@ function approve() {
     out.push(Object.assign(clone(o), { _i: i, S: tp.Sm, lastArr: s.last, pumpEnd: s.done + 30, trips: s.trips, pumpId: tp.pumpId, pumpCar: tp.pumpCar, hire: tp.hire, recipeCode: rc ? rc.code : '', client: L.company }));
   });
   const got = new Set(out.map((o) => o._i).concat(doneIdx)), partial = E.orders.some((o, i) => !got.has(i));
-  const ta = $('#replyTa');
-  S.appr[L.id] = { at: new Date().toISOString(), orders: out, doneIdx, cancelled, reply: ta ? ta.value : '', partial };
-  E.reply = null; E.replyBase = null;
+  const ta = $('#replyTa'), ed = $('#replyEd');
+  S.appr[L.id] = { at: new Date().toISOString(), orders: out, doneIdx, cancelled, reply: ed ? ed.innerText : ta ? ta.value : '', replyH: ed ? ed.innerHTML : null, partial };
+  E.reply = null; E.replyH = null; E.replyBase = null;
   save(); toast((out.length ? 'Patvirtinta: ' + out.length + ' užs. įtraukta į dienos planą.' : 'Patvirtinta.') + (partial ? ' Likę užsakymai laukia.' : ' Atidarytas kitas laukiantis laiškas.'));
   if (partial) renderAll(); else goNext();
 }
@@ -1283,15 +1348,60 @@ function goNext() {
 function scrollSel() { const b = document.querySelector('.li[aria-current="true"]'); if (b && b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); }
 function jumpTo(i, f) {
   const oid = S.sel + ':' + i;
-  if (f === 'rcp') S.rcpOpen[oid] = true; else if (f !== 'time' && f !== 'price') S.oopen[oid] = true;
+  S.ocol = S.ocol || {}; S.ocol[oid] = false;
+  if (f === 'rcp') S.rcpOpen[oid] = true; else if (f !== 'time' && f !== 'price' && f !== 'tr') S.oopen[oid] = true;
   save(); renderDetail();
   const sec = document.getElementById('ord-' + i); if (!sec) return;
-  const el = f === 'rcp' ? sec.querySelector('.rcp') : f === 'time' ? sec.querySelector('.cap') : f === 'price' ? sec.querySelector('[data-f="price"]') || sec.querySelector('.blk[id^="tr-"]') : sec.querySelector('[data-k="' + f + '"]');
+  const el = f === 'rcp' ? sec.querySelector('.rcp') : f === 'time' ? sec.querySelector('.cap') : f === 'price' ? sec.querySelector('[data-f="price"]') || sec.querySelector('.blk[id^="tr-"]') : f === 'tr' ? sec.querySelector('.blk[id^="tr-"]') : sec.querySelector('[data-k="' + f + '"]');
   const box = (el && el.closest('.fld')) || el || sec;
   box.scrollIntoView({ behavior: 'smooth', block: 'center' }); box.classList.add('flash'); setTimeout(() => box.classList.remove('flash'), 1800);
   const inp = f === 'rcp' ? sec.querySelector('.rcp-qi') : el && /INPUT|SELECT/.test(el.tagName) ? el : null; if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 350);
 }
+// Tempimas: geltoni naujo užsakymo stulpeliai / siurblio blokas – keičia laiką (pilnos valandos); siurblio blokas į kitą eilutę – keičia siurblį.
+function dragBind() {
+  let D = null;
+  const info = (i) => { const E = S.ed[S.sel], o = E && E.orders[i]; if (!o) return null; const P = b3plan(o, S.sel + ':' + i); return P ? { o, P } : null; };
+  const tAt = (track, hz, x) => { const r = track.getBoundingClientRect(), f = Math.max(0, Math.min(1, (x - r.left) / r.width)); return 360 + Math.round(f * hz * 30 / 60) * 60; };
+  document.addEventListener('pointerdown', (ev) => {
+    const el = ev.target.closest('[data-drag]'); if (!el) return;
+    const pump = !!el.closest('.b3pumps'), box = pump ? el.closest('.b3pumps') : el.closest('.b3pl2'), track = pump ? el.closest('.b3pt') : box;
+    const i = Number(el.dataset.drag), hz = Number(box.dataset.hz), X = info(i); if (!X || !track) return;
+    ev.preventDefault();
+    const ghost = document.createElement('div'); ghost.className = 'dragg'; track.appendChild(ghost);
+    D = { i, hz, pump, box, track, ghost, X, x0: ev.clientX, y0: ev.clientY, m: X.P.sel, car: null, moved: false };
+    document.body.classList.add('dragging');
+    const mv = (e) => {
+      if (!D) return; D.moved = D.moved || Math.abs(e.clientX - D.x0) > 4 || Math.abs(e.clientY - D.y0) > 6;
+      const m = tAt(D.track, D.hz, e.clientX), o = D.X.o, T = Number(o.travel) || 40, ok = (o.mode === 'savivartis' ? m - LOAD : m - T - LOAD) >= 360;
+      const w = D.X.P.win, inWin = !w || (m >= w[0] + 360 && m <= w[1] + 360);
+      const r = D.X.P.res.find((x) => x.m === m);
+      let tx = hhmm(m) + (r ? ' · +' + sp(r.add) + ' €' : '') + (!ok ? ' · per anksti krauti' : !inWin ? ' · už kliento lango' : '');
+      if (D.pump) { const tr = document.elementFromPoint(e.clientX, e.clientY), row = tr && tr.closest('.b3pr[data-car]'); $$('.b3pr.drop').forEach((x) => x.classList.remove('drop')); if (row && !row.classList.contains('nok')) { row.classList.add('drop'); D.car = row.dataset.car; tx += ' · ' + row.querySelector('.b3pl b').textContent; } else D.car = null; }
+      D.m = ok ? m : null;
+      D.ghost.style.left = ((m - 360) / (D.hz * 30) * 100).toFixed(2) + '%'; D.ghost.dataset.t = tx; D.ghost.classList.toggle('bad', !ok);
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
+      document.body.classList.remove('dragging'); $$('.b3pr.drop').forEach((x) => x.classList.remove('drop'));
+      const d = D; D = null; if (d.ghost) d.ghost.remove(); if (!d.moved) return;
+      const oid = S.sel + ':' + d.i, st = (S.b3 = S.b3 || {})[oid] = S.b3[oid] || {};
+      if (d.m != null) st.t = d.m;
+      if (d.pump && d.car) st.pc = d.car === 'samdomas' ? 'samdomas' : d.car;
+      save(); keep(renderDetail); renderSide(); b3scroll();
+      toast('Pasirinkta ' + (d.m != null ? hhmm(d.m) : 'laikas nepakeistas') + (d.pump && d.car ? ' · siurblys ' + (d.car === 'samdomas' ? 'naujas samdomas' : d.car.replace(/^samdomas·.*/, 'jau samdytas')) : '') + '.');
+    };
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+    mv(ev);
+  });
+  document.addEventListener('keydown', (ev) => {
+    const el = ev.target.closest && ev.target.closest('[data-b3t]'); if (!el || !['ArrowLeft', 'ArrowRight'].includes(ev.key)) return;
+    const [i, m] = el.dataset.b3t.split(':'); const oid = S.sel + ':' + i, st = (S.b3 = S.b3 || {})[oid] = S.b3[oid] || {};
+    const cur = st.t || Number(m); st.t = Math.max(360, Math.min(1080, (Number($('.b3o[aria-pressed="true"]') ? $('.b3o[aria-pressed="true"]').dataset.b3t.split(':')[1] : cur)) + (ev.key === 'ArrowRight' ? 60 : -60)));
+    ev.preventDefault(); save(); keep(renderDetail); b3scroll(); const n = $('.b3o[aria-pressed="true"]'); if (n) n.focus();
+  });
+}
 function bind() {
+  dragBind();
   document.addEventListener('click', (ev) => {
     const t = ev.target.closest('button,a'); if (!t) return;
     if (t.classList.contains('nvl')) { S.view = t.dataset.view; save(); renderAll(); return; }
@@ -1306,26 +1416,29 @@ function bind() {
     if (t.id === 'addOrder') { S.ed[S.sel].orders.push(blankOrder()); save(); renderLetters(); return; }
     if (t.dataset.del != null) { S.ed[S.sel].orders.splice(Number(t.dataset.del), 1); save(); renderLetters(); return; }
     if (t.dataset.rcp) { const o = curOrder(t); if (o) { const E = S.ed[S.sel], i = E.orders.indexOf(o); o.recipeId = Number(t.dataset.rcp); o.priceOk = false; o.rcpMan = true; o.rcpWhy = 'man'; o.rcpFrom = null; propagateRecipe(E, i); S.rcpOpen[S.sel + ':' + i] = false; if (S.rqo) delete S.rqo[S.sel + ':' + i]; save(); renderLetters(); } return; }
+    if (t.dataset.pricechk != null) { const o = S.ed[S.sel].orders[Number(t.dataset.pricechk)]; o.priceChk = !o.priceChk; save(); renderLetters(); return; }
     if (t.dataset.priceok != null) { const o = S.ed[S.sel].orders[Number(t.dataset.priceok)]; o.priceOk = !o.priceOk; save(); renderLetters(); return; }
+    if (t.dataset.ocol != null) { const k = S.sel + ':' + t.dataset.ocol, sec = t.closest('section.order'); S.ocol = S.ocol || {}; S.ocol[k] = !(sec && sec.classList.contains('col')); save(); keep(renderDetail); return; }
     if (t.dataset.tropen != null) { const k = S.sel + ':' + t.dataset.tropen; S.trOpen = S.trOpen || {}; S.trOpen[k] = !S.trOpen[k]; save(); keep(renderDetail); return; }
     if (t.dataset.rcpopen != null) { const k = S.sel + ':' + t.dataset.rcpopen; S.rcpOpen[k] = !S.rcpOpen[k]; save(); renderDetail(); return; }
     if (t.dataset.oopen != null) { const k = S.sel + ':' + t.dataset.oopen, sec = t.closest('section.order'); const cur = sec && sec.querySelector('.grid-f'); S.oopen[k] = !cur; save(); keep(renderDetail); return; }
     if (t.dataset.chopen != null) { const k = S.sel + ':' + t.dataset.chopen; S.chOpen[k] = !S.chOpen[k]; save(); keep(renderDetail); return; }
     if (t.dataset.msg) { S.msgOpen[t.dataset.msg] = !S.msgOpen[t.dataset.msg]; save(); renderDetail(); return; }
-    if (t.dataset.jump) { const [i, f] = t.dataset.jump.split(':'); jumpTo(Number(i), f); return; }
-    if (t.dataset.jumpo != null) { const sec = document.getElementById('ord-' + t.dataset.jumpo); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (t.dataset.jump) { ev.preventDefault(); const [i, f] = t.dataset.jump.split(':'); jumpTo(Number(i), f); return; }
+    if (t.dataset.jumpo != null) { S.ocol = S.ocol || {}; S.ocol[S.sel + ':' + t.dataset.jumpo] = false; renderDetail(); const sec = document.getElementById('ord-' + t.dataset.jumpo); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (t.dataset.close) { S.closed[t.dataset.close] = true; save(); toast('Laiškas uždarytas.'); renderAll(); return; }
+    if (t.id === 'sendR') { const ed = $('#replyEd'), ta = $('#replyTa'); S.sent = S.sent || {}; S.sent[S.sel] = { at: new Date().toISOString(), reply: ed ? ed.innerText : ta ? ta.value : '', replyH: ed ? ed.innerHTML : null }; S.closed[S.sel] = true; save(); toast('Atsakymas pažymėtas kaip išsiųstas (testas) – atidarytas kitas laiškas.'); goNext(); return; }
     if (t.id === 'closeL') { S.closed[S.sel] = true; save(); toast('Laiškas uždarytas – atidarytas kitas laukiantis.'); goNext(); return; }
-    if (t.id === 'unclose') { delete S.closed[S.sel]; save(); renderAll(); return; }
+    if (t.id === 'unclose') { delete S.closed[S.sel]; if (S.sent) delete S.sent[S.sel]; save(); renderAll(); return; }
     if (t.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (t.dataset.b3v) { const [i, v] = t.dataset.b3v.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).v = v; save(); keep(renderDetail); b3scroll(); return; }
     if (t.dataset.b3t) { const [i, m] = t.dataset.b3t.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).t = Number(m); save(); keep(renderDetail); b3scroll(); return; }
     if (t.dataset.pick) { const [i, k] = t.dataset.pick.split(':').map(Number); S.ed[S.sel].orders[i].pick = k; save(); renderLetters(); return; }
     if (t.id === 'noteSend') { const v = $('#noteTa').value.trim(); if (!v) return; (S.notes[S.sel] = S.notes[S.sel] || []).push(v); delete S.nd[S.sel]; save(); if (key()) runAI(S.sel); else { toast('Pastaba išsaugota. AI neprijungtas – juodraštį koreguokite ranka.'); renderLetters(); } return; }
-    if (t.id === 'replyReset' || t.id === 'replyReset2' || t.id === 'replyFromFields') { const E = S.ed[S.sel]; if (t.id === 'replyFromFields' && E.reply != null && E.reply !== (E.fmt === 'sms' ? smsText(S.sel) : genReply(S.sel)) && !window.confirm('Ranka redaguotas tekstas bus pakeistas atsakymu pagal įvestus duomenis. Tęsti?')) return; E.reply = null; E.replyBase = null; save(); renderSide(); const ta = $('#replyTa'); if (ta) { ta.classList.add('flash'); setTimeout(() => ta.classList.remove('flash'), 1500); } return; }
+    if (t.id === 'replyReset' || t.id === 'replyReset2' || t.id === 'replyFromFields') { const E = S.ed[S.sel]; if (t.id === 'replyFromFields' && E.reply != null && E.reply !== (E.fmt === 'sms' ? smsText(S.sel) : genReply(S.sel)) && !window.confirm('Ranka redaguotas tekstas bus pakeistas atsakymu pagal įvestus duomenis. Tęsti?')) return; E.reply = null; E.replyH = null; E.replyBase = null; save(); renderSide(); const ta = $('#replyTa') || $('#replyEd'); if (ta) { ta.classList.add('flash'); setTimeout(() => ta.classList.remove('flash'), 1500); } return; }
     if (t.id === 'writeOwn') { const E = S.ed[S.sel]; E.reply = 'Laba diena,\n\n\n\n' + sig(LETTERS.find((x) => x.id === S.sel)); E.replyBase = ''; save(); renderSide(); return; }
     if (t.dataset.ev) { const e = S.ev[S.sel] = S.ev[S.sel] || {}; const v = t.dataset.ev === 'ok'; e.ok = e.ok === v ? null : v; e.at = new Date().toISOString(); save(); renderList(); renderDetail(); if (e.ok === false) { const c = $('#evCom'); if (c) c.focus(); } return; }
-    if (t.dataset.fmt) { const E = S.ed[S.sel]; if ((E.fmt || 'mail') !== t.dataset.fmt) { if (E.reply != null && !window.confirm('Ranka redaguotas tekstas bus pakeistas. Tęsti?')) return; E.fmt = t.dataset.fmt; E.reply = null; E.replyBase = null; save(); renderSide(); } return; }
+    if (t.dataset.fmt) { const E = S.ed[S.sel]; if ((E.fmt || 'mail') !== t.dataset.fmt) { if ((E.reply != null || E.replyH != null) && !window.confirm('Ranka redaguotas tekstas bus pakeistas. Tęsti?')) return; E.fmt = t.dataset.fmt; E.reply = null; E.replyH = null; E.replyBase = null; save(); renderSide(); } return; }
     if (t.id === 'approve') { approve(); return; }
     if (t.id === 'undo') { delete S.appr[S.sel]; save(); renderAll(); return; }
     if (t.id === 'undoPart') { delete S.appr[S.sel]; save(); renderAll(); return; }
@@ -1341,6 +1454,7 @@ function bind() {
   });
   document.addEventListener('input', (ev) => {
     const t = ev.target;
+    if (t.id === 'replyEd') { const E = S.ed[S.sel]; if (E.reply == null && E.replyH == null) E.replyBase = genReply(S.sel); E.replyH = t.innerHTML; E.reply = t.innerText; save(); return; }
     if (t.id === 'replyTa') { const E = S.ed[S.sel]; if (E.reply == null) E.replyBase = E.fmt === 'sms' ? smsText(S.sel) : genReply(S.sel); E.reply = t.value; save(); return; }
     if (t.id === 'noteTa') { S.nd[S.sel] = t.value; save(); return; }
     if (t.id === 'lq') { S.lq = t.value; clearTimeout(bind._l); bind._l = setTimeout(() => { renderList(); const x = $('#lq'); if (x) { x.focus(); x.setSelectionRange(x.value.length, x.value.length); } }, 250); return; }
@@ -1354,7 +1468,8 @@ function bind() {
     if (t.dataset.k) {
       const o = curOrder(t); if (!o) return; const k = t.dataset.k, v = t.value;
       if (k === 'pumpLen') o.pump = { need: !!v, len: v ? Number(v) : null };
-      else if (['qty', 'travel', 'interval', 'price', 'trPrice', 'pAtv', 'pVal'].includes(k)) o[k] = v === '' ? '' : Number(v);
+      else if (['price', 'trPrice', 'pAtv', 'pVal', 'papVal'].includes(k)) { const x = pnum(v); o[k] = x == null ? '' : Math.round(x * 100) / 100; o.priceChk = false; }
+      else if (['qty', 'travel', 'interval'].includes(k)) o[k] = v === '' ? '' : Number(String(v).replace(',', '.'));
       else if (k === 'mode') { o.mode = v; if (v === 'savivartis') o.terms = 'exw'; else if (o.terms === 'exw') o.terms = ''; }
       else if (k === 'asked') { o.asked = v; o.props = normProps([v]); }
       else if (k === 'win') { o.win = v; if (v) o.time = ''; }
@@ -1362,7 +1477,7 @@ function bind() {
       else o[k] = v;
       if (['asked', 'plant', 'pumpLen', 'action'].includes(k)) autoRecipe(o);
       if (['asked', 'plant', 'terms', 'mode', 'pumpLen'].includes(k)) o.priceOk = false;
-      if (['date', 'time', 'win', 'plant', 'qty', 'pumpLen', 'mode', 'travel', 'interval'].includes(k)) { o.pick = null; const E = S.ed[S.sel], st = S.b3 && S.b3[S.sel + ':' + E.orders.indexOf(o)]; if (st) { delete st.t; if (k === 'plant') delete st.v; } }
+      if (['date', 'time', 'win', 'plant', 'qty', 'pumpLen', 'mode', 'travel', 'interval'].includes(k)) { o.pick = null; const E = S.ed[S.sel], st = S.b3 && S.b3[S.sel + ':' + E.orders.indexOf(o)]; if (st) { delete st.t; delete st.pc; if (k === 'plant') delete st.v; } }
       save(); renderLetters(); return;
     }
     if (t.dataset.skip != null) { const o = S.ed[S.sel].orders[Number(t.dataset.skip)]; o.skip = !t.checked; save(); renderLetters(); return; }

@@ -1510,6 +1510,7 @@ function bind() {
     if (t.id === 'closeL') { S.closed[S.sel] = true; save(); toast('Laiškas uždarytas – atidarytas kitas laukiantis.'); goNext(); return; }
     if (t.id === 'unclose') { delete S.closed[S.sel]; if (S.sent) delete S.sent[S.sel]; save(); renderAll(); return; }
     if (t.id === 'toTop') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (t.id === 'toAppr') { const x = apprEl(); if (x) { (x.closest('.card') || x).scrollIntoView({ behavior: 'smooth', block: 'end' }); } return; }
     if (t.dataset.b3v) { const [i, v] = t.dataset.b3v.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).v = v; save(); keep(renderDetail); b3scroll(); return; }
     if (t.dataset.timeok != null) { const oid = S.sel + ':' + t.dataset.timeok, st = (S.b3 = S.b3 || {})[oid] = S.b3[oid] || {}; const E = S.ed[S.sel], P = b3plan(E.orders[Number(t.dataset.timeok)], oid); st.okT = st.okT === P.sel ? null : P.sel; save(); keep(renderDetail); renderSide(); return; }
     if (t.dataset.b3t) { const [i, m] = t.dataset.b3t.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).t = Number(m); save(); keep(renderDetail); b3scroll(); return; }
@@ -1591,7 +1592,15 @@ async function testKey() {
 let tT = null;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(tT); tT = setTimeout(() => { t.hidden = true; }, 3500); }
 
-window.addEventListener('scroll', () => { const b = document.getElementById('toTop'); if (b) b.hidden = window.scrollY < 500; }, { passive: true });
+function fabUpd() {
+  const b = document.getElementById('toTop'); if (b) b.hidden = window.scrollY < 500;
+  const a = document.getElementById('toAppr'), x = apprEl();
+  if (a) { const r = x && x.getBoundingClientRect(); a.hidden = !x || !x.offsetParent || (r.top < window.innerHeight - 40 && r.bottom > 60); }
+}
+// Tvirtinimo vieta: veiksmų mygtukai dešiniajame skydelyje (telefone – po laišku).
+const apprEl = () => document.querySelector('#side .acts');
+window.addEventListener('scroll', fabUpd, { passive: true }); window.addEventListener('resize', fabUpd);
+setInterval(fabUpd, 800);
 async function boot() {
   S = load();
   try {

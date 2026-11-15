@@ -62,9 +62,11 @@ function normProps(list) {
   (txt.match(/(?<![A-Z])W(\d{1,2})(?![0-9])/g) || []).forEach((x) => { if (!out.includes(x)) out.push(x); });
   return out;
 }
+// Aplinkos klasės: aukštesnė tos pačios grupės klasė tenkina žemesnę (XC4 ⊇ XC3 ⊇ XC2 ⊇ XC1, XD3 ⊇ XD2…, XF, XA, XS, XM).
+const covers = (have, want) => { const a = /^X([CDSFAM])(\d)$/.exec(have), b = /^X([CDSFAM])(\d)$/.exec(want); return !!(a && b && a[1] === b[1] && Number(a[2]) >= Number(b[2])); };
 function classify(r, req) {
   const reqX = req.some((x) => /^X[A-Z]/.test(x));
-  const miss = req.filter((x) => !r.props.includes(x)), extra = r.props.filter((x) => !req.includes(x) && x !== 'X0' && !(!reqX && /^XC\d/.test(x)));
+  const miss = req.filter((x) => !r.props.includes(x) && !r.props.some((h) => covers(h, x))), extra = r.props.filter((x) => !req.includes(x) && x !== 'X0' && !(!reqX && /^XC\d/.test(x)));
   return { miss, extra, kind: miss.length ? 'miss' : extra.length ? 'extra' : 'fit' };
 }
 function recipeOptions(o) {
@@ -83,6 +85,12 @@ function recipeOptions(o) {
     const byCode = (code, why) => { const r = at.find((x) => String(x.r.code).toUpperCase() === String(code).toUpperCase() && !x.miss.length && (!wantS || !o.slump || x.r.slump === o.slump)); return r ? Object.assign({}, r, { why }) : null; };
     const same = window.BPDB.sameAddress(o.client, (o.address || '') + ' ' + (o.object || ''));
     for (let k = same.length - 1; k >= 0 && !hist; k--) hist = byCode(same[k].code, 'obj');
+    // kodas pirmiausia: į tą patį objektą dažniausiai vežtas receptas tos pačios stiprumo klasės (net jei receptų DB savybės skiriasi)
+    if (!hist && same.length) {
+      const cnt = {}; same.forEach((x) => { const c = String(x.code).toUpperCase(); cnt[c] = (cnt[c] || 0) + 1; });
+      const cls = req.find((x) => /^C\d/.test(x));
+      Object.entries(cnt).sort((a, b) => b[1] - a[1]).some(([c, n]) => { const r = at.find((x) => String(x.r.code).toUpperCase() === c && (!cls || x.r.props.includes(cls)) && (!o.slump || !x.r.slump || x.r.slump === o.slump)); if (r) { const prod = (same.find((x) => String(x.code).toUpperCase() === c) || {}).product || ''; hist = Object.assign({}, r, { why: 'obj', n, dbDiff: r.miss.length ? 'receptų DB: ' + r.r.props.join(' ') + ' · BetonPro produkte: ' + prod.split(' - ').slice(-1)[0] : '' }); } return !!r; });
+    }
     if (!hist) { const sm = window.BPDB.summary(o.client); if (sm) sm.codes.slice().sort((a, b) => b.n - a.n).some((c) => (hist = byCode(c.code, 'cl'))); }
   }
   return { req, fit, extra, elsewhere, wantS, used, hist };
@@ -219,7 +227,7 @@ function b3calc(D, view, nn) {
    Tarp dviejų užsakymų siurblys pervažiuoja per 60 min; tarpas > 4 val. – grįžta į bazę (prastovos nėra). */
 const PHIRE = 200, PIDLE = 60, PTRV = 60, PGAP = 240;
 let PF = null;
-function pumpFleetMap() { if (!PF && DBX() && window.BPDB.pumpFleet) { PF = new Map(); window.BPDB.pumpFleet().forEach((p) => PF.set(p.car, p)); } return PF || new Map(); }
+function pumpFleetMap() { if (!PF && DBX() && window.BPDB.pumpFleet) { PF = new Map(); window.BPDB.pumpFleet().filter((p) => p.c3).forEach((p) => PF.set(p.car, p)); } return PF || new Map(); } // tik C3 siurbliai (transporto DB)
 const sameKind = (type, ptype) => /PUMI/.test(ptype) ? /pumi/i.test(type) : !/pumi/i.test(type) && (!/42/.test(ptype) || /42/.test(type));
 function pumpRows(D) {
   const rows = new Map();
@@ -234,7 +242,7 @@ function pumpPick(D, o, Sabs, s) {
   const ptype = ptypeOf(o.pump.len), nj = pumpJob(o, Sabs, s);
   let best = null;
   pumpRows(D).forEach((r) => {
-    if (r.car === 'samdomas' || !sameKind(r.type, ptype)) return;
+    if (r.car === 'samdomas' || !r.c3 || !sameKind(r.type, ptype)) return; // kandidatai – tik C3 siurbliai
     if (!r.jobs.every((j) => nj.b + PTRV <= j.a || nj.a - PTRV >= j.b)) return;
     const idle = Math.max(0, idleOf(r.jobs.concat([nj])) - idleOf(r.jobs)), cost = Math.round(idle / 60 * PIDLE);
     const c = { car: r.car, type: r.type, owner: r.owner, c3: r.c3, own: true, idle, cost, busy: r.jobs.length };
@@ -299,8 +307,8 @@ function b3pumps(D, o, Sabs, s, HZ, pp) {
   let h = '', list = Array.from(rows.values()).filter((r) => r.jobs.length || (pp && r.car === pp.car));
   list.sort((x, y) => (x.car === 'samdomas') - (y.car === 'samdomas') || (y.c3 - x.c3) || x.car.localeCompare(y.car)).forEach((r) => { const mine = pp && r.car === pp.car; h += row(r.car, r.car === 'samdomas' ? 'patvirtinti' : (r.type || '') + ' · ' + (r.c3 ? 'C3' : (r.owner || '').slice(0, 10)) + (mine && pp.idle ? ' · prastova ' + hrs1(pp.idle) + ' val.' : ''), mine ? r.jobs.concat([nj]) : r.jobs, mine); });
   if (pp && pp.car === 'samdomas') h += row('samdomas', pp.ptype + ' · +' + PHIRE + ' € atvykimas', [nj], true);
-  const free = Array.from(rows.values()).filter((r) => !r.jobs.length && r.car !== 'samdomas' && !(pp && r.car === pp.car));
-  if (free.length) h += `<span class="muted" style="font-size:11.5px">Laisvi visą dieną: ${free.map((r) => esc(r.car + ' ' + (r.type || ''))).join(', ')}</span>`;
+  const free = Array.from(rows.values()).filter((r) => r.c3 && !r.jobs.length && r.car !== 'samdomas' && !(pp && r.car === pp.car));
+  if (free.length) h += `<span class="muted" style="font-size:11.5px">Laisvi C3 siurbliai visą dieną: ${free.map((r) => esc(r.car + ' ' + (r.type || ''))).join(', ')}</span>`;
   if (!h) h = '<span class="muted" style="font-size:12px">Šią dieną siurbliai nedirba.</span>';
   return { html: h, car: pp ? pp.car : null };
 }
@@ -355,6 +363,9 @@ function b3cHTML(o, oid, i, done) {
   // naujo užsakymo santrauka
   const q = Number(o.qty) || 0, maxT = Math.max(...cur.nn), durH = (endAbs - firstAbs) / 60;
   if (!s.self) h += `<div class="b3sum"><b>Naujas:</b> ${String(q).replace('.', ',')} m³ · ${s.n} ${nr(s.n)} po ≤${String(TRIP).replace('.', ',')} m³ · reisas ${hrs1(LOAD + 2 * s.T + UNL * Math.min(TRIP, q))} val. (30 min krovimas + ${s.T} min kelionė${o.km ? ' (' + Math.round(o.km) + ' km)' : ''} + ${Math.round(UNL * Math.min(TRIP, q))} min iškrovimas + grįžimas) · ${hhmm(firstAbs)}–${lastAbs >= 1440 ? 'kitą d. ' : ''}${hhmm(lastAbs)} · vienu metu iki ${maxT} betonv.${cur.pp ? ' · siurblys ' + esc(pumpTxt(cur.pp)) : ''}</div>`;
+  { const rr = recipeById(o.recipeId), tt = termsOf(o, rr);
+    if (!s.self) h += `<div class="b3pay"><b>Transportas klientui:</b> ${tt === 'sep' ? (() => { const tk = trKain(o); return s.n + ' reis. × ' + sp(tk.v) + ' € = <b>' + sp(s.n * tk.v) + ' €</b> (' + esc(tk.src) + ')'; })() : tt === 'ddp' ? 'įskaičiuotas į betono kainą (DDP)' : 'kliento (EXW)'} · <b>mūsų betonvežių kaštai:</b> ${sp(cur.tcost != null ? cur.add - (cur.pp ? cur.pp.cost : 0) : 0)} € papildomai</div>`;
+    else h += `<div class="b3pay"><b>Transportas:</b> kliento${o.ctype ? ' (' + esc(o.ctype) + ')' : ''} – mūsų betonvežiai neužimami, transporto kaina neskaičiuojama (EXW).</div>`; }
   if (endAbs > 1200 || durH > 10) h += `<div class="warn"><b>Didelis betonavimas – netelpa į darbo dieną</b> (baigtųsi ${endAbs >= 1440 ? 'kitą dieną ' : ''}${hhmm(endAbs)}). Siūloma: dalinti per kelias dienas, krauti iš dviejų mazgų arba didinti intervalą.</div>`;
   if (q > 100) h += `<div class="note">Betonavimas virš 100 m³ – reikia nepertraukiamo betonavimo plano (atsakingi mazgo darbuotojai).</div>`;
   // grafikas, laisvų juosta, siurbliai – visada matomi
@@ -365,6 +376,7 @@ function b3cHTML(o, oid, i, done) {
   h += `<span class="eb muted">Laiko juosta · turime laisvų (+) arba trūksta (−)</span><div class="b3axrow"><i></i><div class="b3hrs" style="grid-template-columns:repeat(${HZ / 2},1fr)">${Array.from({ length: HZ / 2 }, (_, k) => `<span>${String((6 + k) % 24).padStart(2, '0')}</span>`).join('')}</div><i></i></div><div class="b3axrow"><i></i><div class="b3strip" style="grid-template-columns:repeat(${HZ / 2},1fr)">${cells}</div><i></i></div>`;
   const pp = b3pumps(D, o, sel, s, HZ, newHere ? cur.pp : null);
   h += `<span class="eb muted">Siurbliai · atvažiavimas 60 min, pervažiavimas tarp užsakymų 60 min · prastova (oranžinė) – mūsų kaštai</span><div class="b3pumps">${pp.html}</div>`;
+  if (cur.pp) { const pk = pumpKain(o), hrsJ = (cur.pp.job.b - cur.pp.job.a) / 60; h += `<div class="b3pay"><b>Siurblys klientui:</b> ${pk ? 'atvykimas ' + sp(pk.atv) + ' € + ' + sp(pk.val) + ' €/val. × ~' + hrs1(hrsJ * 60) + ' val. ≈ <b>' + sp(pk.atv + pk.val * Math.ceil(hrsJ)) + ' €</b> (' + esc(pk.src) + ')' : esc(cur.pp.ptype) + ' – kaina „patvirtinsime atskirai“'} · <b>mūsų siurblio kaštai:</b> ${cur.pp.own ? (cur.pp.idle ? 'prastova ' + hrs1(cur.pp.idle) + ' val. = ' + sp(cur.pp.cost) + ' €' : '0 € (' + esc(cur.pp.car) + ', be prastovos)') : 'samdomas ' + PHIRE + ' € atvykimas'}</div>`; }
   // laiko pasirinkimas – po siurbliais
   h += `<span class="eb" style="font-size:10.5px;color:#15171A;font-weight:700;margin-top:6px">Pasirinkite laiką${win ? ' · klientas: ' + esc(win[2]) + ' (' + hhmm(win[0] + 360) + '–' + hhmm(win[1] + 360) + ') – parenkama pagal betonvežius ir siurblius' : ''} (slinkite →)</span>
     <div class="b3opts">${res.map((r) => {
@@ -427,7 +439,8 @@ const TOOL = {
             kiekis_apytikslis: { type: 'boolean', description: 'true, jei klientas kiekį nurodė intervalu ar apytiksliai – atsakyme parašysime „Kiekį patikslinsime paskutiniu betonvežiu“.' },
             siurblys_reikia: { type: 'boolean' },
             siurblio_ilgis_m: { type: ['integer', 'null'], description: '„pumikas“, „pumi“, „pumikas 28–31 m“ → 28; 36 m → 36; 42 m → 42. Kliento nurodyto siurblio NEklausk.' },
-            pristatymas: { type: 'string', enum: ['betonvezis', 'savivartis', 'kriause'], description: 'savivartis – klientas pasiima pats; kriause – betonvežis pila tiesiai iš kriaušės (be siurblio).' },
+            pristatymas: { type: 'string', enum: ['betonvezis', 'savivartis', 'kriause'], description: 'savivartis – KLIENTO TRANSPORTAS (bet kokia kliento transporto priemonė: savivartis, dumperis, savas betonvežis, priekaba, „pasiimsime patys“); kriause – mūsų betonvežis pila tiesiai iš kriaušės (be siurblio).' },
+            kliento_transportas: { type: ['string', 'null'], description: 'Jei pristatymas savivartis – kokia kliento transporto priemonė, kaip parašyta: „savivartis“, „dumperis“, „savas betonvežis“. Kitaip null.' },
             intervalas_min: { type: ['integer', 'null'] },
             priedai: { type: ['string', 'null'], description: 'Fibra, kristalai, lėtiklis ir pan.' },
             mazgas: { type: 'string', enum: ['R', 'S', 'B'] },
@@ -439,6 +452,9 @@ const TOOL = {
         }
       },
       truksta: { type: 'array', items: { type: 'string' } },
+      kalba: { type: 'string', enum: ['lt', 'en', 'lv', 'pl', 'ru'], description: 'Kokia kalba rašė užsakovas (ne persiuntėjas). Atsakymas klientui bus šia kalba (lt arba en).' },
+      uzsakovas: { type: ['object', 'null'], properties: { vardas: { type: 'string' }, imone: { type: 'string' }, el_pastas: { type: ['string', 'null'] }, tel: { type: ['string', 'null'] } }, description: 'Tikrasis užsakovas, jei laišką PERSIUNTĖ kitas asmuo (Fw:/Fwd:, „From: … Sent: …“ citata, persiuntėjas iš kitos įmonės, pvz. ESSPO). Kontaktus perrašyk iš persiųsto laiško. Jei laišką rašė pats užsakovas – null.' },
+      persiuntejas: { type: ['object', 'null'], properties: { vardas: { type: 'string' }, imone: { type: 'string' }, el_pastas: { type: ['string', 'null'] } }, description: 'Kas persiuntė laišką (jei persiųstas). Kitaip null.' },
       klausimas_klientui: { type: ['string', 'null'], description: 'TIK jei nėra datos, kiekio ar markės ir jų negalima nustatyti iš laiško, kitų kliento laiškų ar istorijos. Neklausk laiko, objekto (imk iš istorijos), siurblio, slankumo, aplinkos klasių, ar tikrai tokia markė. Kitaip null.' },
       papildomas_tekstas: { type: ['string', 'null'], description: 'Neprivalomas 1–2 sakinių profesionalus papildymas atsakymui (pvz. dėl fibros, kristalų, lėtiklio, mokėtojo).' },
       atsakymas_ne_uzsakymui: { type: ['string', 'null'], description: 'Tik tipui ne_uzsakymas: trumpas profesionalus atsakymas be pasisveikinimo ir parašo, arba null, jei atsakyti nereikia.' },
@@ -468,6 +484,8 @@ function sysPrompt() {
     'TRŪKSTA: į „truksta“ rašyk tik tai, be ko užsakymo priimti neįmanoma. Nerašyk siurblio ilgio (jei klientas nurodė siurblį), tikslaus laiko (jei yra laiko langas), slankumo, aplinkos klasių.',
     'PAAIŠKINIME neminėk kitų klientų užsakymų, nebent jie tiesiogiai susiję (tas pats objektas ar laikas).',
     'KAINOS UŽKLAUSA: jei klientas klausia kainų – sprendime ir atsakyme iškart pateik kainas: pirmiausia SUTARTINĖS KAINOS (iš kliento sąskaitų), jei jų nėra – kainoraštis; siurbliams visada pateik ir PUMI 28 (atvykimas 180 €, 80 €/val.), ir PUMP 36 (kaina – „patvirtinsime atskirai“, jei nėra sutartinės). Objektą ir mazgą imk iš istorijos. Neklausk adreso ar datos, jei kainai pateikti jų nereikia.',
+    'KLIENTO TRANSPORTAS: jei klientas mini savo transporto priemonę (savivartis, dumperis, „pasiimsime patys“, savas betonvežis) – pristatymas savivartis ir kliento_transportas = priemonė; sąlygos EXW (kaina be pristatymo).',
+    'PERSIŲSTI LAIŠKAI: jei laišką persiuntė kitas asmuo (pvz. ESSPO darbuotojas persiuntė kliento užsakymą) – užpildyk uzsakovas (tikrasis klientas su kontaktais iš persiųsto laiško) ir persiuntejas. Atsakymas eis užsakovui, persiuntėjui – kopija. kalba – užsakovo kalba.',
     'ILGI GRAFIKAI (> 8 eilučių): laukus pildyk trumpai – pastabos iki 60 simbolių, adresą kartok tik kai keičiasi.',
     'Rašyk lietuviškai, dalykiškai.'
   ].join('\n');
@@ -550,7 +568,7 @@ function fromAI(u, L) {
     action: u.veiksmas || 'naujas', date: u.data || '', time: u.laiko_langas ? '' : okTime(u.laikas), qtyApprox: !!u.kiekis_apytikslis, win: u.laiko_langas && WIN[u.laiko_langas] ? u.laiko_langas : '', object: u.objektas || '', address: u.adresas || '', coords: u.koordinates || '',
     asked: u.marke_kaip_prase || '', props: normProps(u.savybes && u.savybes.length ? u.savybes : [u.marke_kaip_prase || '']), slump: u.slankumas || '', dmax: u.dmax || null,
     qty: u.kiekis_m3 == null ? '' : u.kiekis_m3, pump: { need: !!u.siurblys_reikia, len: u.siurblio_ilgis_m || (u.siurblys_reikia ? 28 : null) },
-    mode: u.pristatymas || 'betonvezis', interval: u.intervalas_min || '', additives: u.priedai || '', plant: u.mazgas || 'S', travel: u.kelione_min || 40,
+    mode: u.pristatymas || 'betonvezis', ctype: u.kliento_transportas || '', terms: u.pristatymas === 'savivartis' ? 'exw' : '', interval: u.intervalas_min || '', additives: u.priedai || '', plant: u.mazgas || 'S', travel: u.kelione_min || 40,
     notes: u.pastabos || '', ref: u.nuoroda || '', recipeId: null, pick: null, client: L.company
   };
 }
@@ -572,31 +590,87 @@ function fillFromHistory(o, L) {
   const la = window.BPDB.lastAt(o.client, (o.address || '') + ' ' + (o.object || ''), before);
   if (la && la.km > 0) { o.km = la.km; o.travel = kmMin(la.km); o.trSrc = 'hist'; }
 }
-function autoRecipe(o) { if (o.action === 'atsaukti') return; const ro = recipeOptions(o); if (ro.hist) { o.recipeId = ro.hist.r.id; o.rcpWhy = 'hist'; } else { o.recipeId = ro.fit.length ? ro.fit[0].r.id : null; o.rcpWhy = o.recipeId ? 'bp' : ''; } o.rcpMan = false; o.rcpFrom = null; }
+function autoRecipe(o) { if (o.action === 'atsaukti') return; const ro = recipeOptions(o); if (ro.hist) { o.recipeId = ro.hist.r.id; o.rcpWhy = 'hist'; } else { const pick = ro.fit[0] || ro.extra[0]; o.recipeId = pick ? pick.r.id : null; o.rcpWhy = o.recipeId ? 'bp' : ''; } o.rcpMan = false; o.rcpFrom = null; }
 const rcpKey = (o) => o.plant + '|' + normProps(o.props && o.props.length ? o.props : [o.asked || '']).join(' ') + '|' + (o.slump || '');
 function propagateRecipe(E, i) { const src = E.orders[i]; if (!src || !src.recipeId) return; E.orders.forEach((o, k) => { if (k === i || o.rcpMan || o.action === 'atsaukti' || rcpKey(o) !== rcpKey(src)) return; o.recipeId = src.recipeId; o.rcpWhy = 'same'; o.rcpFrom = i + 1; }); }
 
 /* ---------- atsakymas ---------- */
+// Persiųstas laiškas: tikrasis užsakovas (iš BP) skiriasi nuo siuntėjo.
+function fwdOf(L) { const R = S.res[L.id], u = R && R.uzsakovas; if (!u || !(u.el_pastas || u.vardas)) return null; if (u.el_pastas && L.contact.mail && u.el_pastas.toLowerCase() === L.contact.mail.toLowerCase()) return null; return { u, p: R.persiuntejas || null }; }
 function sig(L) {
   const j = /justina/.test(L.box || '');
-  return 'Pagarbiai\n' + (j ? 'Justina Kavaliauskaitė' : 'Alina Veber') + '\nVadybininkė · UAB „C3 Betonas“\nuzsakymai@c3betonas.lt';
+  return TX('Pagarbiai\n', 'Best regards\n') + (j ? 'Justina Kavaliauskaitė' : 'Alina Veber') + TX('\nVadybininkė · UAB „C3 Betonas“', '\nSales manager · UAB "C3 Betonas"') + '\nuzsakymai@c3betonas.lt';
 }
 function recipeById(id) { return RECIPES.find((r) => r.id === Number(id)); }
 // Kainoraštis (be PVM). Betonas – recepto kainoraštis €/m³; PUMI – mediana iš BetonPro sąskaitų (PUMI atvykimas 180 €, valanda 80 €).
 const PUMP_KAIN = { pumi: { atv: 180, val: 80 } };
-function pumpKain(o) { const t = ptypeOf(o.pump && o.pump.len); return /PUMI/.test(t) ? Object.assign({ lab: t }, PUMP_KAIN.pumi) : null; }
+let LANG = 'lt'; const TX = (lt, en) => LANG === 'en' ? en : lt;
+const WD_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const wdL = (d) => { if (LANG !== 'en') return wd(d); const t = new Date(d + 'T12:00:00'); return isNaN(t) ? '' : WD_EN[t.getDay()]; };
+const TR_MED = 65; // transportas €/reisą (mediana iš sąskaitų, jei DB neįkelta)
+const isClientTr = (o) => o.mode === 'savivartis';
+const num = (v) => v != null && v !== '' && Number(v) > 0 ? Number(v) : null;
+// Sąlygos: ddp – kaina su pristatymu; sep – betonas + transportas atskirai (€/reisą); exw – kliento transportas.
+function defTerms(o, r) {
+  if (isClientTr(o)) return 'exw';
+  const sv = DBX() && window.BPDB.services ? window.BPDB.services(o.client) : null;
+  if (sv && sv.tr.client != null) return 'sep';
+  const pq = DBX() && r ? window.BPDB.price(r.code, o.client) : null;
+  if (pq && pq.byT && pq.byT.DDP) return 'ddp';
+  return 'sep';
+}
+const termsOf = (o, r) => isClientTr(o) ? 'exw' : (o.terms || defTerms(o, r));
+const TERMS = { ddp: 'Su pristatymu (DDP)', sep: 'Betonas + transportas atskirai', exw: 'Kliento transportas (EXW)' };
+function pumpKain(o) {
+  const t = ptypeOf(o.pump && o.pump.len); if (!/PUMI/.test(t)) return null;
+  const sv = DBX() && window.BPDB.services ? window.BPDB.services(o.client) : null;
+  const atv = num(o.pAtv) || (sv && sv.atv.client) || PUMP_KAIN.pumi.atv, val = num(o.pVal) || (sv && sv.val.client) || PUMP_KAIN.pumi.val;
+  return { lab: t, atv, val, src: num(o.pAtv) || num(o.pVal) ? 'įvesta' : sv && sv.atv.client ? 'ankstesnės sąlygos' : 'kainoraštis' };
+}
+function trKain(o) {
+  const sv = DBX() && window.BPDB.services ? window.BPDB.services(o.client) : null;
+  const m = num(o.trPrice); if (m) return { v: m, src: 'įvesta' };
+  if (sv && sv.tr.client != null) return { v: sv.tr.client, src: 'ankstesnės sąlygos' };
+  return { v: (sv && sv.tr.med) || TR_MED, src: 'kainoraštis (mediana)' };
+}
 function clientPrice(r, o) { const pr = DBX() && r ? window.BPDB.price(r.code, o.client) : null; return pr && pr.client != null ? pr.client : null; }
+// Siūloma betono kaina pagal sąlygas: DDP – kliento DDP kaina; EXW / atskirai – kliento EXW kaina; kitaip – kainoraštis (reikia patvirtinti).
+function suggestPrice(r, o) {
+  const t = termsOf(o, r), pq = DBX() && r ? window.BPDB.price(r.code, o.client) : null, b = (pq && pq.byT) || {};
+  const want = t === 'ddp' ? 'DDP' : 'EXW', other = t === 'ddp' ? 'EXW' : 'DDP';
+  if (b[want]) return { v: b[want].p, src: 'ankstesnės sąlygos, ' + want + ', ' + Math.round(b[want].q) + ' m³', need: false };
+  if (b['?']) return { v: b['?'].p, src: 'ankstesnės sąlygos (sąlygos nenurodytos), ' + Math.round(b['?'].q) + ' m³', need: false };
+  if (b[other]) return { v: r.price, src: 'kainoraštis – kliento kaina tik ' + other + ' (' + eur(b[other].p) + ')', need: true };
+  return { v: r.price, src: 'kainoraštis', need: true };
+}
+const manPrice = (o) => num(o.price);
+// Ar reikia patvirtinti kainą: betono kaina iš kainoraščio arba transporto / siurblio kaina iš kainoraščio.
+function priceNeed(o) {
+  const r = recipeById(o.recipeId); if (!r || o.action === 'atsaukti') return false;
+  const t = termsOf(o, r), why = [];
+  if (manPrice(o) == null && suggestPrice(r, o).need) why.push('betono');
+  if (t === 'sep' && trKain(o).src.startsWith('kainoraštis')) why.push('transporto');
+  if (!isClientTr(o) && o.pump && o.pump.need) { const pk = pumpKain(o); if (!pk || pk.src === 'kainoraštis') why.push('siurblio'); }
+  return why.length ? why : false;
+}
+const finalPrice = (o, r) => manPrice(o) != null ? manPrice(o) : suggestPrice(r, o).v;
 function orderLine(o, tp) {
   const r = recipeById(o.recipeId), ch = tp;
   const t = ch ? fmt(ch.Sm) : (o.time || '[laikas]');
   const what = r ? (r.cls + (r.props.slice(1).length ? ' ' + r.props.slice(1).join(' ') : '') + (r.slump ? ' ' + r.slump : '')) : (o.asked || '[markė]');
   const lines = [];
-  lines.push('Data: ' + (o.date || '[data]') + (o.date ? ' (' + wd(o.date) + ')' : '') + ', ' + (o.mode === 'savivartis' ? 'atsiėmimas nuo ' : 'pristatymo pradžia ') + t);
-  lines.push((o.mode === 'savivartis' ? 'Mazgas: ' + PLANTS[o.plant].name + ' (' + PLANTS[o.plant].area + ')' : 'Objektas: ' + ([o.object, o.address].filter((x) => x && !/^nenurodyt/i.test(x)).join(', ') || '[objektas]')));
-  lines.push('Betonas: ' + what + ', ' + (o.qty ? String(o.qty).replace('.', ',') : '[kiekis]') + ' m³' + (o.additives ? ' · ' + o.additives : ''));
-  if (o.mode !== 'savivartis') lines.push('Siurblys: ' + (o.pump && o.pump.need ? ptypeOf(o.pump.len) : (o.mode === 'kriause' ? 'nereikia, pylimas iš kriaušės' : 'nereikia')));
-  if (r && o.mode !== 'atsaukti') { const cp = clientPrice(r, o); lines.push(cp != null ? 'Kaina: ' + eur(cp) + ' be PVM (pagal ankstesnes sąlygas)' : 'Kaina pagal kainoraštį: ' + eur(r.price) + ' be PVM'); }
-  if (o.mode !== 'savivartis' && o.pump && o.pump.need) { const pk = pumpKain(o); lines.push(pk ? 'Siurblys ' + pk.lab + ' pagal kainoraštį: atvykimas ' + pk.atv + ' €, darbas ' + pk.val + ' €/val. be PVM' : 'Siurblio ' + (o.pump.len || '') + ' m kainą patvirtinsime atskirai.'); }
+  lines.push(TX('Data: ', 'Date: ') + (o.date || TX('[data]', '[date]')) + (o.date ? ' (' + wdL(o.date) + ')' : '') + ', ' + (isClientTr(o) ? TX('atsiėmimas nuo ', 'pick-up from ') : TX('pristatymo pradžia ', 'delivery start ')) + t);
+  if (isClientTr(o)) lines.push(TX('Transportas: kliento', 'Transport: customer') + (o.ctype ? ' (' + o.ctype + ')' : '') + TX(', atsiėmimas iš mazgo ', ', pick-up at plant ') + PLANTS[o.plant].name + ' (' + PLANTS[o.plant].area + ')');
+  else lines.push(TX('Objektas: ', 'Site: ') + ([o.object, o.address].filter((x) => x && !/^nenurodyt/i.test(x)).join(', ') || TX('[objektas]', '[site]')));
+  lines.push(TX('Betonas: ', 'Concrete: ') + what + ', ' + (o.qty ? String(o.qty).replace('.', ',') : TX('[kiekis]', '[qty]')) + ' m³' + (o.additives ? ' · ' + o.additives : ''));
+  if (!isClientTr(o)) lines.push(TX('Siurblys: ', 'Pump: ') + (o.pump && o.pump.need ? ptypeOf(o.pump.len) : (o.mode === 'kriause' ? TX('nereikia, pylimas iš kriaušės', 'not needed, direct discharge from the chute') : TX('nereikia', 'not needed'))));
+  if (r && o.action !== 'atsaukti') {
+    const t = termsOf(o, r), v = finalPrice(o, r);
+    if (t === 'ddp') lines.push(TX('Kaina su pristatymu (DDP): ', 'Price incl. delivery (DDP): ') + eur(v) + TX(' be PVM', ' excl. VAT'));
+    else if (t === 'exw') lines.push(TX('Kaina: ', 'Price: ') + eur(v) + TX(' be PVM, EXW ', ' excl. VAT, EXW ') + PLANTS[o.plant].name + TX(' (kliento transportas)', ' (customer transport)'));
+    else { const tk = trKain(o), n = Math.max(1, Math.ceil((Number(o.qty) || 0) / TRIP - 1e-9)); lines.push(TX('Betonas: ', 'Concrete: ') + eur(v) + TX(' be PVM; transportas: ', ' excl. VAT; transport: ') + String(tk.v.toFixed(2)).replace('.', ',') + TX(' €/reisą (', ' €/trip (') + n + TX(' reis.)', ' trips)')); }
+  }
+  if (o.mode !== 'savivartis' && o.pump && o.pump.need) { const pk = pumpKain(o); lines.push(pk ? TX('Siurblys ', 'Pump ') + pk.lab + TX(': atvykimas ', ': arrival ') + pk.atv + TX(' €, darbas ', ' €, work ') + pk.val + TX(' €/val. be PVM', ' €/h excl. VAT') : TX('Siurblio ' + (o.pump.len || '') + ' m kainą patvirtinsime atskirai.', 'The price of the ' + (o.pump.len || '') + ' m pump will be confirmed separately.')); }
   return { text: lines.join('\n'), win: o.win && WIN[o.win] && ch ? { lab: WIN[o.win][2], got: t, date: o.date } : null, changed: ch && o.time && hm(o.time) != null && ch.Sm !== hm(o.time) ? { asked: o.time, got: t, why: ch.ok === false ? '' : (ch.cap ? (ch.cap.opts[0].why || []).join(', ') : (hm(o.time) + 360 - (Number(o.travel) || 40) - LOAD < 360 ? 'per anksti krauti – mazgas pradeda 06:00' : '')) } : null };
 }
 // Ar vadybininkas (ar BP) užpildė viską, ko reikia patvirtinimui: data, kiekis, receptas visiems tvirtinamiems užsakymams.
@@ -609,7 +683,9 @@ const isQuestion = (id) => { const R = S.res[id]; return !!(R && R.tipas === 'kl
 function genReply(id) {
   const L = LETTERS.find((x) => x.id === id), R = S.res[id], E = S.ed[id];
   if (!R || !E) return '';
-  const hello = 'Laba diena,\n\n';
+  LANG = R.kalba === 'en' ? 'en' : 'lt';
+  try {
+  const hello = TX('Laba diena,\n\n', 'Hello,\n\n');
   if (R.tipas === 'ne_uzsakymas') return R.atsakymas_ne_uzsakymui ? hello + R.atsakymas_ne_uzsakymui + '\n\n' + sig(L) : '';
   const ai = apprIdx(id), live = E.orders.map((o, i) => ({ o, i })).filter((x) => !ai.has(x.i));
   const skipped = live.filter((x) => isSkip(id, x.o, x.i) && x.o.action !== 'atsaukti');
@@ -617,23 +693,24 @@ function genReply(id) {
   const act = actX.map((x) => x.o), canc = live.filter((x) => x.o.action === 'atsaukti').map((x) => x.o);
   let body = '';
   if (canc.length && !act.length) {
-    body = 'patvirtiname, kad ' + (canc.length > 1 ? 'šie užsakymai atšaukti' : 'užsakymas atšauktas') + ':\n\n' + canc.map((o) => '– ' + [o.date, o.time, o.object || o.address, o.qty ? o.qty + ' m³' : '', o.ref].filter(Boolean).join(' · ')).join('\n') + '\n\nNaują betonavimo datą galite nurodyti atsakydami į šį laišką.';
+    body = TX('patvirtiname, kad ' + (canc.length > 1 ? 'šie užsakymai atšaukti' : 'užsakymas atšauktas') + ':', 'we confirm that ' + (canc.length > 1 ? 'these orders are' : 'the order is') + ' cancelled:') + '\n\n' + canc.map((o) => '– ' + [o.date, o.time, o.object || o.address, o.qty ? o.qty + ' m³' : '', o.ref].filter(Boolean).join(' · ')).join('\n') + '\n\n' + TX('Naują betonavimo datą galite nurodyti atsakydami į šį laišką.', 'You can give a new pouring date by replying to this e-mail.');
   } else if (isQuestion(id) && R.klausimas_klientui) {
-    body = 'dėkojame už užsakymą.\n\n' + R.klausimas_klientui + '\n\nGavę atsakymą užsakymą įrašysime iš karto ir atsiųsime patvirtinimą.';
+    body = TX('dėkojame už užsakymą.', 'thank you for your order.') + '\n\n' + R.klausimas_klientui + '\n\n' + TX('Gavę atsakymą užsakymą įrašysime iš karto ir atsiųsime patvirtinimą.', 'Once we have your answer, we will book the order and send a confirmation.');
   } else {
     const parts = actX.map((x) => orderLine(x.o, timePlan(x.o, id + ':' + x.i)));
-    body = (R.tipas === 'pakeitimas' ? 'pagal Jūsų prašymą pakeitėme užsakymą' + (act.length > 1 ? 'us' : '') + ':\n\n' : 'patvirtiname Jūsų užsakym' + (act.length > 1 ? 'us' : 'ą') + ':\n\n') + parts.map((p) => p.text).join('\n\n');
+    body = (R.tipas === 'pakeitimas' ? TX('pagal Jūsų prašymą pakeitėme užsakymą' + (act.length > 1 ? 'us' : '') + ':', 'as requested, we have changed your order' + (act.length > 1 ? 's' : '') + ':') : TX('patvirtiname Jūsų užsakym' + (act.length > 1 ? 'us' : 'ą') + ':', 'we confirm your order' + (act.length > 1 ? 's' : '') + ':')) + '\n\n' + parts.map((p) => p.text).join('\n\n');
     const ch = parts.filter((p) => p.changed);
-    if (ch.length) body += '\n\n' + ch.map((p) => 'Jūsų prašytu laiku (' + p.changed.asked + ') ' + (p.changed.why || 'pristatyti negalime') + ', todėl siūlome pradžią ' + p.changed.got + '.').join('\n') + ' Jei šis laikas netinka, praneškite – pasiūlysime kitą.';
+    if (ch.length) body += '\n\n' + ch.map((p) => TX('Jūsų prašytu laiku (' + p.changed.asked + ') ' + (p.changed.why || 'pristatyti negalime') + ', todėl siūlome pradžią ' + p.changed.got + '.', 'We cannot deliver at the requested time (' + p.changed.asked + '), so we propose ' + p.changed.got + '.')).join('\n') + TX(' Jei šis laikas netinka, praneškite – pasiūlysime kitą.', ' If this time does not suit you, let us know and we will offer another.');
     const wn = parts.filter((p) => p.win);
-    if (wn.length) body += '\n\n' + 'Pradžios laiką parinkome pagal Jūsų nurodytą („' + Array.from(new Set(wn.map((p) => p.win.lab))).join('“, „') + '“). Jei laikas netinka – praneškite.';
-    if (skipped.length) body += '\n\n' + skipped.map((x) => 'Dėl ' + (x.i + 1) + ' užsakymo (' + (x.o.date ? x.o.date.slice(5) : 'be datos') + (x.o.object ? ', ' + x.o.object : '') + ') patikslinsime atskirai.').join('\n');
+    if (wn.length) body += '\n\n' + TX('Pradžios laiką parinkome pagal Jūsų nurodytą („' + Array.from(new Set(wn.map((p) => p.win.lab))).join('“, „') + '“). Jei laikas netinka – praneškite.', 'We chose the start time within your requested window. If it does not suit you, please let us know.');
+    if (skipped.length) body += '\n\n' + skipped.map((x) => TX('Dėl ' + (x.i + 1) + ' užsakymo (' + (x.o.date ? x.o.date.slice(5) : 'be datos') + (x.o.object ? ', ' + x.o.object : '') + ') patikslinsime atskirai.', 'We will confirm order ' + (x.i + 1) + ' (' + (x.o.date ? x.o.date.slice(5) : 'no date') + ') separately.')).join('\n');
     if (R.klausimas_klientui && !complete(id)) body += '\n\n' + R.klausimas_klientui;
-    if (act.some((o) => o.qtyApprox)) body += '\n\nKiekį patikslinsime paskutiniu betonvežiu.';
+    if (act.some((o) => o.qtyApprox)) body += '\n\n' + TX('Kiekį patikslinsime paskutiniu betonvežiu.', 'The final quantity will be adjusted with the last truck.');
     if (R.papildomas_tekstas) body += '\n\n' + R.papildomas_tekstas;
-    if (act.some((o) => o.mode !== 'savivartis')) body += '\n\nTikslų betonvežių atvykimo grafiką pranešime dieną prieš pristatymą.';
+    if (act.some((o) => !isClientTr(o))) body += '\n\n' + TX('Tikslų betonvežių atvykimo grafiką pranešime dieną prieš pristatymą.', 'We will send the exact truck arrival schedule the day before delivery.');
   }
   return hello + body + '\n\n' + sig(L);
+  } finally { LANG = 'lt'; }
 }
 
 /* ---------- būsenos ---------- */
@@ -646,6 +723,7 @@ function orderProbs(id, o, i) {
   if (!(Number(o.qty) > 0)) p.push({ f: 'qty', t: 'nėra kiekio' });
   if (!o.recipeId) p.push({ f: 'rcp', t: 'neparinktas receptas' });
   const tp = timePlan(o, id + ':' + i); if (tp && !tp.ok) p.push({ f: 'time', t: tp.why.join(', ') });
+  const pn = priceNeed(o); if (pn && !o.priceOk) p.push({ f: 'price', t: 'patvirtinkite ' + pn.join(', ') + ' kainą (kainoraštis)' });
   return p;
 }
 function status(id) {
@@ -752,7 +830,8 @@ function renderDetail() {
   const fl = filtered(), pos = fl.findIndex((x) => x.id === L.id), prv = pos > 0 ? fl[pos - 1] : null, nxt = pos >= 0 && pos < fl.length - 1 ? fl[pos + 1] : null;
   const FLAB = { all: 'Visi', todo: 'Laukia jūsų', none: 'Neanalizuoti', orders: 'Užsakymai', done: 'Patvirtinti', closed: 'Uždaryti', bad: '✗ Blogai', unev: 'Neįvertinti' };
   let h = evalHTML(L.id) + `<nav class="lnav" aria-label="Laiškai"><button type="button" class="btn btn-sm btn-ghost" data-lgo="${prv ? prv.id : ''}" ${prv ? '' : 'disabled'}>← Ankstesnis</button><span class="mono muted">${pos >= 0 ? pos + 1 : '–'} iš ${fl.length} · ${esc(FLAB[S.filter] || '')}</span><button type="button" class="btn btn-sm btn-dark" data-lgo="${nxt ? nxt.id : ''}" ${nxt ? '' : 'disabled'}>Kitas laiškas →</button></nav><article class="card"><div class="card-h"><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="eb muted">${esc(L.box)} · ${L.received.replace('T', ' ')} · ${esc(L.channel)}</span><b class="ar" style="font-size:20px">${esc(L.company)}</b><span style="color:#4A4F55">${esc(L.subject)}</span></span>
-    <span class="contacts"><span class="chip"><b>${esc(L.contact.name)}</b>${L.contact.role ? ' · ' + esc(L.contact.role) : ''}</span>${L.contact.tel ? `<span class="chip mono">${esc(L.contact.tel)}</span>` : ''}${L.contact.mail ? `<span class="chip mono">${esc(L.contact.mail)}</span>` : ''}</span></div>
+    ${fwdOf(L) ? (() => { const U = fwdOf(L); return `<span class="contacts" style="flex-basis:100%"><span class="eb muted">Užsakovas</span><span class="chip"><b>${esc(U.u.vardas || '')}</b>${U.u.imone ? ' · ' + esc(U.u.imone) : ''}</span>${U.u.tel ? `<span class="chip mono">${esc(U.u.tel)}</span>` : ''}${U.u.el_pastas ? `<span class="chip mono">${esc(U.u.el_pastas)}</span>` : ''}</span><span class="contacts" style="flex-basis:100%"><span class="eb muted">Persiuntė</span><span class="chip"><b>${esc(L.contact.name)}</b>${U.p && U.p.imone ? ' · ' + esc(U.p.imone) : ''}</span>${L.contact.mail ? `<span class="chip mono">${esc(L.contact.mail)}</span>` : ''}</span>`; })() : ''}
+    <span class="contacts" ${fwdOf(L) ? 'style="display:none"' : ''}><span class="chip"><b>${esc(L.contact.name)}</b>${L.contact.role ? ' · ' + esc(L.contact.role) : ''}</span>${L.contact.tel ? `<span class="chip mono">${esc(L.contact.tel)}</span>` : ''}${L.contact.mail ? `<span class="chip mono">${esc(L.contact.mail)}</span>` : ''}</span></div>
     ${dbCardHTML(L)}
     <div class="card-b"><div class="msg${R && R.tipas && !S.msgOpen[L.id] ? ' clamp' : ''}">${esc(L.body)}</div>${R && R.tipas ? `<button type="button" class="btn btn-sm btn-ghost" data-msg="${L.id}" style="align-self:flex-start">${S.msgOpen[L.id] ? 'Suskleisti laišką ▴' : 'Rodyti visą laišką ▾'}</button>` : ''}
     ${(L.attachments || []).map((a) => `<details class="att" ${R ? '' : 'open'}><summary>📎 ${esc(a.name)}</summary><pre>${esc(a.text)}</pre></details>`).join('')}
@@ -834,10 +913,21 @@ function orderHead(o, tp) {
   let t = got || o.time || '—';
   if (o.win && WIN[o.win] && got) t = WIN[o.win][2] + ' → ' + got; else if (o.time && got && o.time !== got) t = 'prašo ' + o.time + ' → ' + got;
   const obj = [o.object, o.address].filter((x) => x && !/nenurodyt/i.test(x))[0] || 'objektas nenurodytas';
-  const pump = o.mode === 'savivartis' ? 'pasiima pats' : o.pump && o.pump.need ? ptypeOf(o.pump.len) + (tp && tp.pumpCar ? ' · ' + (tp.pumpCar === 'samdomas' ? 'samdomas' : tp.pumpCar) : '') : o.mode === 'kriause' ? 'iš kriaušės' : 'betonvežiu';
+  const pump = isClientTr(o) ? 'kliento transportas' + (o.ctype ? ' (' + o.ctype + ')' : '') : o.pump && o.pump.need ? ptypeOf(o.pump.len) + (tp && tp.pumpCar ? ' · ' + (tp.pumpCar === 'samdomas' ? 'samdomas' : tp.pumpCar) : '') : o.mode === 'kriause' ? 'iš kriaušės' : 'betonvežiu';
   const l1 = [day, t, obj].map(esc).join(' · ');
-  const l2 = [`<b>${o.qty ? String(o.qty).replace('.', ',') : '—'} m³</b>`, r ? esc(r.code + ' ' + [r.cls].concat(r.props.slice(1)).join(' ') + (r.slump ? ' ' + r.slump : '')) : '<span class="bad">receptas neparinktas</span>', esc(pump), PLANTS[o.plant] ? esc(PLANTS[o.plant].name) : ''].filter(Boolean).join(' · ');
+  const l2 = [`<b>${o.qty ? String(o.qty).replace('.', ',') : '—'} m³</b>`, r ? esc(r.code + ' ' + [r.cls].concat(r.props.slice(1)).join(' ') + (r.slump ? ' ' + r.slump : '')) : '<span class="bad">receptas neparinktas</span>', r ? esc(eur(finalPrice(o, r)) + ' ' + ({ ddp: 'DDP', sep: '+ transp.', exw: 'EXW' })[termsOf(o, r)]) : '', esc(pump), PLANTS[o.plant] ? esc(PLANTS[o.plant].name) : ''].filter(Boolean).join(' · ');
   return `<span class="osum">${l1}</span><span class="osum2">${l2}</span>`;
+}
+// Kainos blokas: sąlygos (DDP / betonas + transportas / EXW), betono kaina, transportas €/reisą, siurblys; kainoraščio kainas reikia patvirtinti.
+function priceHTML(o, r, i, done) {
+  const t = termsOf(o, r), sg = suggestPrice(r, o), mp = manPrice(o), pn = priceNeed(o);
+  const inp = (k, v, ph, w) => `<input data-k="${k}" type="number" step="0.01" min="0" value="${v != null && v !== '' ? esc(v) : ''}" placeholder="${ph}" style="width:${w || 110}px" ${done ? 'disabled' : ''}>`;
+  let h = `<div class="pricef${pn && !o.priceOk ? ' need' : ''}" data-f="price"><div class="pf-r"><span class="eb">Sąlygos</span>${isClientTr(o) ? '<b>Kliento transportas (EXW)</b>' : `<select data-k="terms" ${done ? 'disabled' : ''}>${['ddp', 'sep', 'exw'].map((k) => `<option value="${k}" ${k === t ? 'selected' : ''}>${TERMS[k]}</option>`).join('')}</select>`}${!o.terms && !isClientTr(o) ? '<span class="muted">pagal istoriją</span>' : ''}</div>`;
+  h += `<div class="pf-r"><span class="eb">${t === 'ddp' ? 'Betonas su pristatymu' : 'Betonas'}, €/m³</span>${inp('price', o.price, sg.v.toFixed(2))}<span class="muted">${mp != null ? 'įvesta ranka · siūloma ' + eur(sg.v) + ' (' + esc(sg.src) + ')' : 'siūloma ' + eur(sg.v) + ' – ' + esc(sg.src)}</span></div>`;
+  if (t === 'sep') { const tk = trKain(o), n = Math.max(1, Math.ceil((Number(o.qty) || 0) / TRIP - 1e-9)); h += `<div class="pf-r"><span class="eb">Transportas, €/reisą</span>${inp('trPrice', o.trPrice, tk.v.toFixed(2))}<span class="muted">${esc(tk.src)} · ${n} reis. × ${eur(tk.v).replace('/m³', '')} = ${sp(n * tk.v)} €</span></div>`; }
+  if (!isClientTr(o) && o.pump && o.pump.need) { const pk = pumpKain(o); h += pk ? `<div class="pf-r"><span class="eb">${esc(pk.lab)}: atvykimas / €/val.</span>${inp('pAtv', o.pAtv, String(pk.atv), 80)}${inp('pVal', o.pVal, String(pk.val), 80)}<span class="muted">${esc(pk.src)}</span></div>` : `<div class="pf-r"><span class="eb">${esc(ptypeOf(o.pump.len))}</span><span class="muted">kainoraštyje nėra – „patvirtinsime atskirai“</span></div>`; }
+  if (pn) h += o.priceOk ? `<div class="pf-r"><span class="okt">✓ Kaina patvirtinta</span>${done ? '' : `<button type="button" class="btn btn-sm btn-ghost" data-priceok="${i}">Atšaukti</button>`}</div>` : `<div class="pf-r"><span class="bad">⚠ ${esc(pn.join(', '))} kaina pagal kainoraštį – patvirtinkite arba įveskite savo</span>${done ? '' : `<button type="button" class="btn btn-sm btn-dark" data-priceok="${i}">✓ Tvirtinu kainą</button>`}</div>`;
+  return h + '</div>';
 }
 function orderHTML(L, o, i, letterDone) {
   const oid = L.id + ':' + i, cancel = o.action === 'atsaukti', ai = apprIdx(L.id), done = letterDone || ai.has(i);
@@ -846,9 +936,10 @@ function orderHTML(L, o, i, letterDone) {
   const open = S.oopen[oid] != null ? S.oopen[oid] : (!done && probs.some((p) => p.f !== 'rcp' && p.f !== 'time'));
   const skip = !done && isSkip(L.id, o, i), multi = (S.ed[L.id] || {}).orders.length > 1;
   let h = `<section class="order${skip ? ' skip' : ''}" data-i="${i}" id="ord-${i}"><div class="order-h"><b class="badge">${i + 1}</b><span class="st ${cancel ? 'st-bad' : done ? 'st-ok' : ''}">${done ? 'PATVIRTINTA' : actLab}</span>
-    <span class="ohd">${orderHead(o, tp)}</span><span class="ost ${probs.length ? 'bad' : 'ok'}" title="${esc(probs.map((p) => p.t).join(', '))}">${done ? '' : probs.length ? '⚠ ' + probs.length : '✓'}</span>
+    <span class="ohd">${orderHead(o, tp)}</span><span class="ost ok">${done || probs.length ? '' : '✓'}</span>
     ${!done && multi ? `<label class="oskip" title="Praleisti – patvirtinti vėliau"><input type="checkbox" data-skip="${i}" ${skip ? '' : 'checked'}> Tvirtinti</label>` : ''}
     <button type="button" class="btn btn-sm btn-ghost" data-oopen="${i}" aria-expanded="${open}">${open ? 'Suskleisti ▴' : 'Redaguoti ▾'}</button></div>`;
+  if (probs.length && !skip) h += `<div class="oerr">${probs.map((p) => `<button type="button" class="oerr-b" data-jump="${i}:${p.f}">⚠ ${esc(p.t.charAt(0).toUpperCase() + p.t.slice(1))}</button>`).join('')}</div>`;
   if (skip) h += `<div class="note" style="margin:0 12px 10px">Praleista – liks laukti, patvirtinsite vėliau.${probs.length ? '' : ''}</div>`;
   if (!done && !skip && probs.length && multi) h += '';
   if (open) {
@@ -860,7 +951,8 @@ function orderHTML(L, o, i, letterDone) {
       fieldHTML('Markė (kaip prašo)', 'asked', o.asked, { miss: !o.asked && !cancel }) +
       fieldHTML('Objektas', 'object', o.object) +
       fieldHTML('Adresas / vieta', 'address', o.address) +
-      fieldHTML('Pristatymas', 'mode', o.mode, { select: [['betonvezis', 'Betonvežiu'], ['kriause', 'Betonvežiu, iš kriaušės'], ['savivartis', 'Pasiima pats']] }) +
+      fieldHTML('Pristatymas', 'mode', o.mode, { select: [['betonvezis', 'Betonvežiu'], ['kriause', 'Betonvežiu, iš kriaušės'], ['savivartis', 'Kliento transportas']] }) +
+      (isClientTr(o) ? fieldHTML('Kliento transportas', 'ctype', o.ctype || '', { ph: 'savivartis, dumperis…' }) : '') +
       fieldHTML('Siurblys, m', 'pumpLen', o.pump && o.pump.need ? (o.pump.len || '') : '', { type: 'number', ph: 'nereikia' }) +
       fieldHTML('Mazgas', 'plant', o.plant, { select: Object.entries(PLANTS).map(([k, p]) => [k, p.name]) }) +
       `</div><details class="more"><summary>Daugiau ▾</summary><div class="grid-f">` +
@@ -900,6 +992,7 @@ function orderHTML(L, o, i, letterDone) {
         if (ex.length) h += `<details><summary class="muted" style="font-size:12.5px;cursor:pointer">Turi daugiau savybių nei prašė klientas (${ex.length})</summary><div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${ex.map((x) => rcpRow(Object.assign(x, { used: ro.used }), o, done, true)).join('')}</div></details>`;
       }
     }
+    if (cur) h += priceHTML(o, cur, i, done);
     h += `</div>`;
     if (useDb() && window.BPDB.b3day) {
       h += `<div class="cap" data-f="time">${o.date && Number(o.qty) > 0 ? b3cHTML(o, oid, i, done) : '<span class="warn">Talpai patikrinti reikia datos ir kiekio.</span>'}</div>`;
@@ -924,7 +1017,8 @@ function rcpRow(x, o, disabled, selectable) {
   let badge = '';
   if (on) badge = o.rcpWhy === 'same' && o.rcpFrom ? 'PARINKTA KAIP ' + o.rcpFrom + ' UŽSAKYME' : dbc ? (took ? 'PARINKTA PAGAL ISTORIJĄ' : 'ŠIAM KLIENTUI NETIEKTA') : 'PARINKTA';
   const cm = [];
-  if (x.why === 'obj') cm.push('anksčiau vežta į šį objektą');
+  if (x.why === 'obj') cm.push('anksčiau vežta į šį objektą' + (x.n ? ' (' + x.n + ' k.)' : ''));
+  if (x.dbDiff) cm.push(x.dbDiff);
   else if (x.why === 'cl') cm.push('šis klientas ėmė anksčiau');
   else if (dbc && !(on && badge !== 'PARINKTA' && !/KAIP/.test(badge))) cm.push(took ? 'šiam klientui tiekta' : 'šiam klientui netiekta');
   if (x.extra && x.extra.length) cm.push('neprašyta: ' + x.extra.join(', '));
@@ -943,7 +1037,7 @@ function renderSide() {
   const gen = genReply(L.id);
   const edited = E.reply != null, txt = edited ? E.reply : gen, stale = edited && E.replyBase !== gen && !done;
   const subj = E.subj != null ? E.subj : 'Re: ' + String(L.subject || '').replace(/^(re|ats\.?|fwd?):\s*/i, '');
-  const rc = E.rc || { tel: false, mail: L.channel === 'email' };
+  const rc = E.rc || { tel: false, mail: L.channel === 'email', umail: true };
   const noReply = R && R.tipas === 'ne_uzsakymas' && !gen && !edited;
   // problemos
   const probs = [], ai = apprIdx(L.id);
@@ -953,9 +1047,15 @@ function renderSide() {
   let h = `<div class="card"><div class="card-h"><span class="eb muted">Atsakymas klientui</span>${edited ? '<span class="badge" style="background:#FBEFB8">REDAGUOTA</span>' : `<span class="muted" style="font-size:12px">${BP} paruošė</span>`}</div>`;
   if (noReply) h += `<div class="card-b"><div class="note">Atsakymas nesiunčiamas – ${BP} mano, kad atsakyti nereikia. Galite parašyti patys.</div><button type="button" class="btn btn-sm" id="writeOwn" ${done ? 'disabled' : ''}>Rašyti atsakymą</button></div>`;
   else {
-    h += `<div class="card-b" style="gap:8px"><div class="rc-list"><span class="eb muted">Kam</span><div class="rc-item"><b>${esc(L.contact.name)}</b><span class="muted">${esc(L.company)}</span></div>
-      <div class="rc-item">${L.contact.tel ? `<label><input type="checkbox" id="rcTel" ${rc.tel ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">SMS</span><span class="mono">${esc(L.contact.tel)}</span></label>` : ''}${L.contact.mail ? `<label><input type="checkbox" id="rcMail" ${rc.mail ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">PAŠTU</span><span class="mono">${esc(L.contact.mail)}</span></label>` : ''}</div></div>
-      ${rc.mail ? `<div class="fld"><label for="subj">Tema</label><input id="subj" value="${esc(subj)}" ${done ? 'disabled' : ''}></div>` : ''}
+    const U = fwdOf(L);
+    h += `<div class="card-b" style="gap:8px">`;
+    if (U) h += `<div class="rc-list"><span class="eb muted">Kam (užsakovas)</span><div class="rc-item"><b>${esc(U.u.vardas || '')}</b><span class="muted">${esc(U.u.imone || '')}</span></div>
+      <div class="rc-item">${U.u.tel ? `<label><input type="checkbox" id="rcUTel" ${rc.utel ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">SMS</span><span class="mono">${esc(U.u.tel)}</span></label>` : ''}${U.u.el_pastas ? `<label><input type="checkbox" id="rcUMail" ${rc.umail !== false ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">PAŠTU</span><span class="mono">${esc(U.u.el_pastas)}</span></label>` : ''}</div>
+      <span class="eb muted">Kopija (persiuntė)</span><div class="rc-item"><label><input type="checkbox" id="rcMail" ${rc.mail ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">CC</span><span class="mono">${esc(L.contact.mail || '')}</span></label><span class="muted">${esc(L.contact.name)}</span></div>${R && R.kalba && R.kalba !== 'lt' ? `<span class="muted" style="font-size:12px">Užsakovas rašė ${esc(R.kalba.toUpperCase())} – atsakymas ${R.kalba === 'en' ? 'angliškai' : 'lietuviškai (šablono šia kalba nėra)'}.</span>` : ''}</div>`;
+    else h += `<div class="rc-list"><span class="eb muted">Kam</span><div class="rc-item"><b>${esc(L.contact.name)}</b><span class="muted">${esc(L.company)}</span></div>
+      <div class="rc-item">${L.contact.tel ? `<label><input type="checkbox" id="rcTel" ${rc.tel ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">SMS</span><span class="mono">${esc(L.contact.tel)}</span></label>` : ''}${L.contact.mail ? `<label><input type="checkbox" id="rcMail" ${rc.mail ? 'checked' : ''} ${done ? 'disabled' : ''}><span class="badge">PAŠTU</span><span class="mono">${esc(L.contact.mail)}</span></label>` : ''}</div></div>`;
+    h += `
+      ${rc.mail || (U && rc.umail !== false) ? `<div class="fld"><label for="subj">Tema</label><input id="subj" value="${esc(subj)}" ${done ? 'disabled' : ''}></div>` : ''}
       ${stale ? `<div class="warn">Laukai pakeisti po jūsų redagavimo. <button type="button" class="btn btn-sm" id="replyReset">Peržiūrėti atsakymą pagal įvestus duomenis</button></div>` : ''}
       ${!done && !stale ? `<button type="button" class="btn btn-sm" id="replyFromFields" title="Sugeneruoti atsakymą iš formos laukų (data, laikas, objektas, receptas, kiekis, siurblys, kaina)">↻ Peržiūrėti atsakymą pagal įvestus duomenis</button>` : ''}
       <textarea id="replyTa" rows="18" aria-label="Atsakymo klientui tekstas" style="min-height:420px" ${done ? 'readonly' : ''}>${esc(txt)}</textarea>
@@ -1097,10 +1197,10 @@ function goNext() {
 function scrollSel() { const b = document.querySelector('.li[aria-current="true"]'); if (b && b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); }
 function jumpTo(i, f) {
   const oid = S.sel + ':' + i;
-  if (f === 'rcp') S.rcpOpen[oid] = true; else if (f !== 'time') S.oopen[oid] = true;
+  if (f === 'rcp') S.rcpOpen[oid] = true; else if (f !== 'time' && f !== 'price') S.oopen[oid] = true;
   save(); renderDetail();
   const sec = document.getElementById('ord-' + i); if (!sec) return;
-  const el = f === 'rcp' ? sec.querySelector('.rcp') : f === 'time' ? sec.querySelector('.cap') : sec.querySelector('[data-k="' + f + '"]');
+  const el = f === 'rcp' ? sec.querySelector('.rcp') : f === 'time' ? sec.querySelector('.cap') : f === 'price' ? sec.querySelector('.pricef') : sec.querySelector('[data-k="' + f + '"]');
   const box = (el && el.closest('.fld')) || el || sec;
   box.scrollIntoView({ behavior: 'smooth', block: 'center' }); box.classList.add('flash'); setTimeout(() => box.classList.remove('flash'), 1800);
   const inp = f === 'rcp' ? sec.querySelector('.rcp-qi') : el && /INPUT|SELECT/.test(el.tagName) ? el : null; if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 350);
@@ -1119,7 +1219,8 @@ function bind() {
     if (t.id === 'manual') { S.res[S.sel] = { tipas: 'naujas', santrauka: 'Juodraštis pildomas ranka', tikrumas: 0, uzsakymai: [], truksta: [], paaiskinimas: 'Be AI.' }; S.ed[S.sel] = { orders: [blankOrder()], reply: null }; save(); renderLetters(); return; }
     if (t.id === 'addOrder') { S.ed[S.sel].orders.push(blankOrder()); save(); renderLetters(); return; }
     if (t.dataset.del != null) { S.ed[S.sel].orders.splice(Number(t.dataset.del), 1); save(); renderLetters(); return; }
-    if (t.dataset.rcp) { const o = curOrder(t); if (o) { const E = S.ed[S.sel], i = E.orders.indexOf(o); o.recipeId = Number(t.dataset.rcp); o.rcpMan = true; o.rcpWhy = 'man'; o.rcpFrom = null; propagateRecipe(E, i); S.rcpOpen[S.sel + ':' + i] = false; if (S.rqo) delete S.rqo[S.sel + ':' + i]; save(); renderLetters(); } return; }
+    if (t.dataset.rcp) { const o = curOrder(t); if (o) { const E = S.ed[S.sel], i = E.orders.indexOf(o); o.recipeId = Number(t.dataset.rcp); o.priceOk = false; o.rcpMan = true; o.rcpWhy = 'man'; o.rcpFrom = null; propagateRecipe(E, i); S.rcpOpen[S.sel + ':' + i] = false; if (S.rqo) delete S.rqo[S.sel + ':' + i]; save(); renderLetters(); } return; }
+    if (t.dataset.priceok != null) { const o = S.ed[S.sel].orders[Number(t.dataset.priceok)]; o.priceOk = !o.priceOk; save(); renderLetters(); return; }
     if (t.dataset.rcpopen != null) { const k = S.sel + ':' + t.dataset.rcpopen; S.rcpOpen[k] = !S.rcpOpen[k]; save(); renderDetail(); return; }
     if (t.dataset.oopen != null) { const k = S.sel + ':' + t.dataset.oopen, sec = t.closest('section.order'); const cur = sec && sec.querySelector('.grid-f'); S.oopen[k] = !cur; save(); renderDetail(); return; }
     if (t.dataset.chopen != null) { const k = S.sel + ':' + t.dataset.chopen; S.chOpen[k] = !S.chOpen[k]; save(); keep(renderDetail); return; }
@@ -1164,17 +1265,19 @@ function bind() {
     if (t.dataset.k) {
       const o = curOrder(t); if (!o) return; const k = t.dataset.k, v = t.value;
       if (k === 'pumpLen') o.pump = { need: !!v, len: v ? Number(v) : null };
-      else if (k === 'qty' || k === 'travel' || k === 'interval') o[k] = v === '' ? '' : Number(v);
+      else if (['qty', 'travel', 'interval', 'price', 'trPrice', 'pAtv', 'pVal'].includes(k)) o[k] = v === '' ? '' : Number(v);
+      else if (k === 'mode') { o.mode = v; if (v === 'savivartis') o.terms = 'exw'; else if (o.terms === 'exw') o.terms = ''; }
       else if (k === 'asked') { o.asked = v; o.props = normProps([v]); }
       else if (k === 'win') { o.win = v; if (v) o.time = ''; }
       else if (k === 'time') { o.time = v; if (v) o.win = ''; }
       else o[k] = v;
       if (['asked', 'plant', 'pumpLen', 'action'].includes(k)) autoRecipe(o);
+      if (['asked', 'plant', 'terms', 'mode', 'pumpLen'].includes(k)) o.priceOk = false;
       if (['date', 'time', 'win', 'plant', 'qty', 'pumpLen', 'mode', 'travel', 'interval'].includes(k)) { o.pick = null; const E = S.ed[S.sel], st = S.b3 && S.b3[S.sel + ':' + E.orders.indexOf(o)]; if (st) { delete st.t; if (k === 'plant') delete st.v; } }
       save(); renderLetters(); return;
     }
     if (t.dataset.skip != null) { const o = S.ed[S.sel].orders[Number(t.dataset.skip)]; o.skip = !t.checked; save(); renderLetters(); return; }
-    if (t.id === 'rcTel' || t.id === 'rcMail') { const E = S.ed[S.sel], L = LETTERS.find((x) => x.id === S.sel); E.rc = E.rc || { tel: false, mail: L.channel === 'email' }; E.rc[t.id === 'rcTel' ? 'tel' : 'mail'] = t.checked; save(); renderSide(); return; }
+    if (['rcTel', 'rcMail', 'rcUTel', 'rcUMail'].includes(t.id)) { const E = S.ed[S.sel], L = LETTERS.find((x) => x.id === S.sel); E.rc = E.rc || { tel: false, mail: L.channel === 'email', umail: true }; E.rc[{ rcTel: 'tel', rcMail: 'mail', rcUTel: 'utel', rcUMail: 'umail' }[t.id]] = t.checked; save(); renderSide(); return; }
     if (t.id === 'force') { const b = $('#approve'); if (b) b.disabled = !t.checked; return; }
     if (t.id === 'ld') { S.loadDate = t.value; save(); renderLoad(); return; }
     if (t.id === 'bgT') { S.bg = t.checked; save(); renderLoad(); return; }

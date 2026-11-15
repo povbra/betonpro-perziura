@@ -257,3 +257,18 @@ a{color:var(--ink)}
 .b3o{flex-basis:168px}
 #replyFromFields{align-self:flex-start}
 .strip{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.pricef{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 10px;background:#fff;border:1px solid var(--line2)}
+.pricef input{width:120px;font:600 15px "IBM Plex Mono",monospace;padding:6px 8px;border:1px solid #15171A}
+.pricef .muted{font-size:12px}
+/* v15 – IV pastabos */
+.oerr{display:flex;flex-wrap:wrap;gap:4px 8px;padding:6px 14px;background:#FDEDEA;border-bottom:1px solid #F3C9C1}
+.oerr-b{border:0;background:none;padding:2px 0;color:#B23A26;font:600 13px Inter,sans-serif;cursor:pointer;text-align:left}
+.oerr-b:hover{text-decoration:underline}
+.pricef{flex-direction:column;align-items:stretch}
+.pricef.need{border-color:#D2452F;background:#FFF8F6}
+.pf-r{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.pf-r .eb{min-width:170px;color:#15171A}
+.pf-r select{font-size:13px;padding:5px 6px}
+.pf-r .bad{color:#B23A26;font-weight:600;font-size:12.5px}
+.pf-r .okt{color:#17704A;font-weight:600;font-size:12.5px}
+.b3pay{font-size:12px;line-height:1.5;background:#F4F7FB;border-left:4px solid #7D97B8;padding:6px 10px}

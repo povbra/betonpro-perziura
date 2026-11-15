@@ -79,6 +79,8 @@
   }
   // B3c forma: vienos dienos betonvežių užimtumas pagal mazgą (30 min langai 06:00–18:00), C3 betonvežiai, tikri siurbliai
   const B3PADS = [12, 13, 11, 14];
+  const nmz = (x) => String(x || '').toLowerCase().replace(/[„“"']/g, '').replace(/\b(uab|mb|ab)\b/g, '').replace(/[,.]/g, ' ').replace(/\s+/g, ' ').trim();
+  function clientCar(owner, client) { const a = nmz(owner), b = nmz(client); return !!(a && b && (a.includes(b) || b.includes(a))); }
   function b3day(date) {
     if (!IDX) return null;
     const os = IDX.byDate.get(date) || [], hmA = (s) => { const x = String(s || '').match(/(\d{1,2}):(\d{2})/); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
@@ -92,6 +94,7 @@
         if (a == null) return;
         if (info && info.pump) { const k = o.k + '|' + t.car; if (!pj.has(k)) pj.set(k, { car: t.car, type: info.type, owner: info.owner, c3: info.c3, pad: o.pad, client: o.client, s: null, e: null, k: o.k }); return; }
         arrs.push(a);
+        if (info && clientCar(info.owner, o.client)) return; // kliento betonvežis (pasiima pats)
         const un = t.q ? Math.max(10, Math.round(20 * t.q / 7.5)) : 15;
         L.push({ pad: o.pad, car: t.car, s: a - tr - 10, e: a + un + tr });
         if (info && info.c3) { const c = c3trips.get(t.car) || c3trips.set(t.car, {}).get(t.car); c[o.pad] = (c[o.pad] || 0) + 1; }

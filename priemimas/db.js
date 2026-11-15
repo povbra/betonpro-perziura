@@ -7,7 +7,7 @@
   const PLN = { 3: 'Panevėžys', 11: 'Runeikiai', 12: 'Vilnius', 13: 'Stašėnai', 14: 'Baisogala', 15: 'Šiauliai' };
   const LEGAL = new Set(['uab', 'ab', 'mb', 'iį', 'ii', 'všį', 'vsi', 'sia', 'ūb', 'ub', 'tūb', 'filialas', 'lietuvoje', 'as', 'a', 's', 'oü', 'ou']);
   const st = { ok: false, loading: false, err: null, at: null, n: {} };
-  let IDX = null, LETTERS = null;
+  let IDX = null, LETTERS = null, CARS = null;
 
   const tok = () => { try { return localStorage.getItem(LSG) || ''; } catch (e) { return ''; } };
   const setTok = (t) => { try { t ? localStorage.setItem(LSG, t) : localStorage.removeItem(LSG); } catch (e) {} };
@@ -70,11 +70,52 @@
     return { all, byCk, byDate, pAll, pCl, cards };
   }
 
+  function buildCars(AU, VZ) {
+    if (!AU) return null;
+    const zn = {}; if (VZ) VZ.rows.forEach((r) => { zn[r[0]] = clean(r[1]); });
+    const ai = (k) => AU.cols.indexOf(k), m = new Map();
+    AU.rows.forEach((r) => { const own = zn[r[ai('transp_id')]] || ''; m.set(clean(r[ai('name')]), { type: clean(r[ai('tipas')]), owner: own.replace(/,?\s*UAB\b/g, '').trim(), c3: /^C3/i.test(own), pump: /pump|pumi/i.test(clean(r[ai('tipas')])) }); });
+    return m;
+  }
+  // B3c forma: vienos dienos betonvežių užimtumas pagal mazgą (30 min langai 06:00–18:00), C3 betonvežiai, tikri siurbliai
+  const B3PADS = [12, 13, 11, 14];
+  function b3day(date) {
+    if (!IDX) return null;
+    const os = IDX.byDate.get(date) || [], hmA = (s) => { const x = String(s || '').match(/(\d{1,2}):(\d{2})/); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
+    const L = [], pj = new Map(), c3trips = new Map();
+    os.forEach((o) => {
+      const tr = Math.max(10, Math.round((o.km || 20) / 40 * 60));
+      const arrs = [];
+      o.trips.forEach((t, j) => {
+        const info = CARS ? CARS.get(t.car) : null;
+        let a = hmA(t.at); if (a == null) a = hmA(o.time) != null ? hmA(o.time) + j * (o.interval || 20) : null;
+        if (a == null) return;
+        if (info && info.pump) { const k = o.k + '|' + t.car; if (!pj.has(k)) pj.set(k, { car: t.car, type: info.type, owner: info.owner, c3: info.c3, pad: o.pad, client: o.client, s: null, e: null, k: o.k }); return; }
+        arrs.push(a);
+        const un = t.q ? Math.max(10, Math.round(20 * t.q / 7.5)) : 15;
+        L.push({ pad: o.pad, car: t.car, s: a - tr - 10, e: a + un + tr });
+        if (info && info.c3) { const c = c3trips.get(t.car) || c3trips.set(t.car, {}).get(t.car); c[o.pad] = (c[o.pad] || 0) + 1; }
+      });
+      pj.forEach((p) => { if (p.k === o.k && arrs.length) { p.s = Math.min(...arrs); p.e = Math.max(...arrs) + 30; } });
+    });
+    const pumps = Array.from(pj.values()).filter((p) => p.s != null);
+    const c3all = CARS ? Array.from(CARS.entries()).filter(([, v]) => v.c3 && !v.pump).map(([k]) => k) : [];
+    const own = {}; B3PADS.forEach((p) => { own[p] = 0; });
+    c3trips.forEach((c) => { const best = Object.entries(c).sort((a, b) => b[1] - a[1])[0]; if (best && own[best[0]] != null) own[best[0]]++; });
+    const slots = {}, trips = {};
+    B3PADS.forEach((p) => {
+      const l = L.filter((x) => x.pad === p); trips[p] = l.length;
+      slots[p] = Array.from({ length: 24 }, (_, i) => { const a = 360 + 30 * i, b = a + 30; return new Set(l.filter((x) => x.s < b && a < x.e).map((x) => x.car)).size; });
+    });
+    return { date, own, c3: c3all.length || 6, slots, trips, pumps };
+  }
+
   async function load() {
     if (!tok()) { st.ok = false; st.err = null; return st; }
     st.loading = true; st.err = null;
     try {
-      const [V, Sx, K, LT] = await Promise.all([get('vezimai.json'), get('saskaitu_eilutes.json'), get('klientai.json'), get('letters.json').catch(() => null)]);
+      const [V, Sx, K, LT, AU, VZ] = await Promise.all([get('vezimai.json'), get('saskaitu_eilutes.json'), get('klientai.json'), get('letters.json').catch(() => null), get('automobiliai.json').catch(() => null), get('vezejai.json').catch(() => null)]);
+      CARS = buildCars(AU, VZ);
       LETTERS = Array.isArray(LT) && LT.length ? LT : null;
       IDX = build(V, Sx, K);
       st.ok = true; st.at = new Date().toISOString();
@@ -138,5 +179,5 @@
   }
   function dayInfo(date) { const os = IDX ? (IDX.byDate.get(date) || []).filter((o) => o.plant) : []; const cars = {}; os.forEach((o) => { cars[o.plant] = cars[o.plant] || new Set(); o.trips.forEach((t) => t.car && cars[o.plant].add(t.car)); }); return { n: os.length, m3: os.reduce((s, o) => s + o.m3, 0), trips: os.reduce((s, o) => s + o.trips.length, 0), cars: Object.fromEntries(Object.entries(cars).map(([k, v]) => [k, v.size])) }; }
 
-  window.BPDB = { REPO, st, tok, setTok, load, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
+  window.BPDB = { REPO, st, tok, setTok, load, b3day, B3PADS, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
 })();

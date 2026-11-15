@@ -156,6 +156,128 @@ function capOptions(o, oid) {
   return { S0, opts, def };
 }
 
+/* ---------- B3c forma: ar galime priimti (tikri BetonPro duomenys) ---------- */
+const B3N = { 12: 'Vilnius', 13: 'Stašėnai', 11: 'Runeikiai', 14: 'Baisogala' };
+const B3C = { 13: '#3A4652', 14: '#B9BEC4', 11: '#7D97B8', 12: '#A88F5E' };
+const B3P = { R: 11, S: 13, B: 14 };
+const TRF = 140, B3W = 100, B3LG = 56, B3H = 220;
+const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const sp = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+function b3need(o, plant, Sabs) {
+  if (o.mode === 'savivartis') return new Array(24).fill(0);
+  const s = simTrips(o, plant, Sabs - 360, 'x'), out = new Array(24).fill(0);
+  s.trips.forEach((t) => { const a = t[4] + 360, e = t[6] + 360; for (let i = 0; i < 24; i++) { const x = 360 + 30 * i; if (a < x + 30 && x < e) out[i]++; } });
+  return out;
+}
+function b3hire(BT, nn, own2) {
+  const hh = BT.map((v, i) => Math.max(0, v + nn[i] - own2)), n = Math.max(0, ...hh), lv = [];
+  for (let k = 1; k <= n; k++) { const idx = hh.map((v, i) => v >= k ? i : -1).filter((i) => i >= 0); const hrs = Math.ceil((idx[idx.length - 1] - idx[0] + 1) / 2); lv.push({ a: idx[0], b: idx[idx.length - 1], hrs, c: 200 + 60 * hrs }); }
+  return { hh, lv, n, cost: lv.reduce((s, x) => s + x.c, 0) };
+}
+function b3trf(BT, nn, own1, own2) { let t = 0; BT.forEach((v, i) => { t = Math.max(t, Math.min(Math.max(0, v + nn[i] - own1), own2 - own1)); }); return t; }
+function b3calc(D, view, nn) {
+  const pads = view === 'V' ? window.BPDB.B3PADS : [Number(view)];
+  const BT = new Array(24).fill(0); pads.forEach((p) => D.slots[p].forEach((v, i) => { BT[i] += v; }));
+  const own2 = D.c3, own1 = view === 'V' ? own2 : (D.own[view] || 0);
+  const H = b3hire(BT, nn, own2), T = b3trf(BT, nn, own1, own2);
+  return { pads, BT, own1, own2, H, T, cost: H.cost + T * TRF };
+}
+function b3pumps(D, o, Sabs, last) {
+  const rows = new Map();
+  D.pumps.forEach((p) => { const a = Math.max(360, p.s), b = Math.min(1080, p.e); if (b <= a) return; const k = p.car; (rows.get(k) || rows.set(k, { car: p.car, type: p.type, owner: p.owner, c3: p.c3, jobs: [] }).get(k)).jobs.push({ a, b, pad: p.pad, client: p.client }); });
+  const need = o.pump && o.pump.need && o.mode !== 'savivartis';
+  const nj = need ? { a: Sabs, b: last + 30, pad: B3P[o.plant] || 13, client: 'Naujas · ' + (o.client || '') , nw: true } : null;
+  let chosen = null;
+  if (nj) { const list = Array.from(rows.values()).sort((x, y) => (y.c3 - x.c3) || x.car.localeCompare(y.car)); chosen = list.find((r) => r.jobs.every((j) => nj.b + 60 <= j.a - 60 || nj.a - 60 >= j.b + 60)); }
+  const X = (m) => ((m - 360) / 720 * B3W).toFixed(2);
+  const row = (lab, sub, jobs) => {
+    jobs = jobs.slice().sort((a, b) => a.a - b.a);
+    let r = `<div class="b3pr"><span class="b3pl"><b>${esc(lab)}</b><br><span>${esc(sub)}</span></span><div class="b3pt">`;
+    jobs.forEach((j, k) => {
+      r += `<i class="b3tv" style="left:${X(Math.max(360, j.a - 60))}%;width:${(Math.min(60, j.a - 360) / 720 * B3W).toFixed(2)}%"></i><i class="b3tv" style="left:${X(j.b)}%;width:${(Math.min(60, 1080 - j.b) / 720 * B3W).toFixed(2)}%"></i>`;
+      r += `<span class="b3job${j.nw ? ' nw' : ''}" style="left:${X(j.a)}%;width:${((j.b - j.a) / 720 * B3W).toFixed(2)}%;${j.nw ? '' : 'background:' + (B3C[j.pad] || '#9AA0A7')};color:${j.nw || j.pad === 14 ? '#15171A' : '#fff'}" title="${esc(j.client)}">${esc(j.client)}</span>`;
+      const nx = jobs[k + 1]; if (nx && j.b + 60 > nx.a - 60) r += `<i class="b3cf" style="left:${X(nx.a - 60)}%;width:${((j.b + 60 - (nx.a - 60)) / 720 * B3W).toFixed(2)}%"></i>`;
+    });
+    return r + '</div></div>';
+  };
+  let h = '';
+  Array.from(rows.values()).sort((x, y) => (y.c3 - x.c3) || x.car.localeCompare(y.car)).forEach((r) => { h += row(r.car, r.type + ' · ' + (r.c3 ? 'C3' : r.owner.slice(0, 8)), r === chosen ? r.jobs.concat([nj]) : r.jobs); });
+  if (nj && !chosen) h += row('samdomas', 'siurblys', [nj]);
+  if (!h) h = '<span class="muted" style="font-size:12px">Šią dieną siurbliai nedirbo.</span>';
+  return h;
+}
+function b3chart(C, nn, tag, reqAbs, selAbs, newHere) {
+  const MX = Math.max(12, Math.max(...C.BT.map((v, i) => v + nn[i])) + 4), y = (v) => v / MX * B3H, bw = B3W / 24;
+  const X = (m) => ((m - 360) / 720 * B3W).toFixed(2);
+  let bars = '';
+  // apmokami samdyti (nuo pirmo iki paskutinio poreikio)
+  const env = new Array(24).fill(0); C.H.lv.forEach((l) => { for (let i = l.a; i <= l.b; i++) env[i]++; });
+  env.forEach((v, i) => { if (v) bars += `<i class="b3env" style="left:${(i * bw).toFixed(2)}%;width:${bw.toFixed(2)}%;bottom:${y(C.own2).toFixed(1)}px;height:${y(v).toFixed(1)}px"></i>`; });
+  if (C.own2 > C.own1) bars += `<i class="b3band" style="bottom:${y(C.own1).toFixed(1)}px;height:${(y(C.own2) - y(C.own1)).toFixed(1)}px"></i>`;
+  for (let i = 0; i < 24; i++) {
+    let yb = 0;
+    C.pads.forEach((p) => { const v = window.BPDB.b3day.__D.slots[p][i]; if (v) { bars += `<i class="b3b" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(v).toFixed(1)}px;background:${B3C[p]}"></i>`; yb += v; } });
+    if (nn[i]) bars += `<i class="b3b nw" style="left:calc(${(i * bw).toFixed(2)}% + 1px);width:calc(${bw.toFixed(2)}% - 2px);bottom:${y(yb).toFixed(1)}px;height:${y(nn[i]).toFixed(1)}px"></i>`;
+  }
+  bars += `<i class="b3l" style="bottom:${y(C.own1).toFixed(1)}px"></i><span class="b3lt" style="top:${(B3H - y(C.own1) + 4).toFixed(1)}px">mazgo ${C.own1}</span>`;
+  if (C.own2 > C.own1) bars += `<i class="b3l d" style="bottom:${y(C.own2).toFixed(1)}px"></i><span class="b3lt" style="bottom:${(y(C.own2) + 3).toFixed(1)}px">+ pervaž. iš kitų mazgų iki ${C.own2}</span>`;
+  if (newHere) {
+    bars += `<i class="b3m r" style="left:${X(reqAbs)}%"></i><span class="b3mt r" style="left:${X(reqAbs)}%">${hhmm(reqAbs)} klientas</span>`;
+    if (selAbs !== reqAbs) bars += `<i class="b3m" style="left:${X(selAbs)}%"></i><span class="b3mt" style="left:${X(selAbs)}%">${hhmm(selAbs)}</span>`;
+  }
+  let ax = ''; for (let v = 0; v <= MX; v += 5) ax += `<span style="bottom:${(y(v) - 6).toFixed(1)}px">${v}</span>`;
+  ax += `<span class="g" style="bottom:${(y(C.own1) - 6).toFixed(1)}px">${C.own1}</span>`; if (C.own2 > C.own1) ax += `<span class="g" style="bottom:${(y(C.own2) - 6).toFixed(1)}px">${C.own2}</span>`;
+  // € skalė nuo mazgo linijos
+  const costs = C.H.lv.map((l) => l.c).sort((a, b) => b - a), cum = [0];
+  for (let k = 1; k <= MX - C.own1; k++) cum.push(cum[k - 1] + (C.own1 + k <= C.own2 ? TRF : (costs[k - (C.own2 - C.own1) - 1] || 320)));
+  const used = C.T + C.H.n, step = Math.max(1, Math.ceil(14 / y(1)));
+  let rs = `<i class="b3ra" style="bottom:${y(C.own1).toFixed(1)}px"></i>`;
+  for (let k = 0; k <= MX - C.own1; k += step) rs += `<span class="${k <= used ? 'u' : ''}${k === used && used ? ' b' : ''}" style="bottom:${(y(C.own1 + k) - 6).toFixed(1)}px">${sp(cum[k])} €</span>`;
+  if (used && used % step && used <= MX - C.own1) rs += `<span class="u b" style="bottom:${(y(C.own1 + used) - 6).toFixed(1)}px;background:#fff">${sp(cum[used])} €</span>`;
+  const tagt = [C.T ? 'perv. +' + C.T : '', C.H.n ? 'samd. +' + C.H.n : ''].filter(Boolean).join('<br>');
+  if (tagt) rs += `<span class="tg" style="top:${(B3H - y(C.own1) + 4).toFixed(1)}px">${tagt}</span>`;
+  return `<div class="b3c-t"><span class="eb muted">${tag}</span></div>
+    <div class="b3c-hd"><span>betonvežiai, vnt.<br>↓</span><span class="o">papildoma<br>kaina, € ↓</span></div>
+    <div class="b3c-ch"><div class="b3ax" style="height:${B3H}px">${ax}</div><div class="b3pl2" style="height:${B3H}px">${bars}</div><div class="b3rs" style="height:${B3H}px">${rs}</div></div>
+    <div class="b3axrow"><i></i><div class="b3axis">${[6, 8, 10, 12, 14, 16, 18].map((h) => `<span style="left:${((h - 6) / 12 * 100).toFixed(2)}%">${String(h).padStart(2, '0')}</span>`).join('')}</div><i></i></div>`;
+}
+function b3scroll() { $$('.b3opts').forEach((el) => { const p = el.querySelector('[aria-pressed="true"]'); if (p) el.scrollLeft = Math.max(0, p.offsetLeft - el.offsetLeft - 160); }); }
+function b3cHTML(o, oid, i, done) {
+  const B = window.BPDB; if (!B || !B.ready || !B.b3day || !o.date) return '';
+  const D = B.b3day(o.date); if (!D) return ''; B.b3day.__D = D;
+  const plant = o.plant || 'S', pad = B3P[plant] || 13, req = (hm(o.time) != null ? hm(o.time) : 120) + 360;
+  const st = (S.b3 = S.b3 || {})[oid] = S.b3[oid] || {};
+  const times = Array.from(new Set([420, 480, 540, 600, 660, 720, 780, 840, 900, 960, req])).filter((m) => m >= 360 && m <= 1020).sort((a, b) => a - b);
+  const view = st.v || 'V', newHere = view === 'V' || Number(view) === pad;
+  const nnOf = (m) => b3need(o, plant, m), Z = new Array(24).fill(0);
+  const base = b3calc(D, view, Z), res = times.map((m) => { const nn = newHere ? nnOf(m) : Z; return Object.assign(b3calc(D, view, nn), { m, nn }); });
+  const best = newHere ? res.slice().sort((a, b) => (a.cost - b.cost) || (Math.abs(a.m - req) - Math.abs(b.m - req)))[0].m : null;
+  const sel = st.t && times.includes(st.t) ? st.t : (best || req), cur = res.find((r) => r.m === sel) || res[0];
+  const tabs = [['V', 'Visi mazgai']].concat(window.BPDB.B3PADS.map((p) => [String(p), B3N[p]]));
+  let h = `<div class="b3c"><div class="b3tabs">${tabs.map(([k, n]) => `<button type="button" class="b3tab" data-b3v="${i}:${k}" aria-pressed="${String(view) === k}">${n}</button>`).join('')}</div>
+    <span class="eb muted" style="font-size:10px">Naujas užsakymas · ${esc(o.client || '')}, ${esc(PLANTS[plant].name)} · ${esc(o.date)} · pasirinkite laiką (slinkite →)</span>
+    <div class="b3opts">${res.map((r) => {
+      const rec = r.m === best, kind = r.m === req ? 'Prašo' : rec ? 'Rekomenduojama' : 'Laisva';
+      const parts = [r.T ? 'Perv. ' + r.T : '', r.H.n ? 'Samd. ' + r.H.n : ''].filter(Boolean).join(', ');
+      const txt = !D.trips[pad] && !Object.values(D.trips).some(Boolean) ? 'duomenų nėra' : (r.T || r.H.n) ? `<div>${parts}</div><div>Kaštai ${sp(r.cost)} €</div>${newHere ? `<div><strong>Naujam +${sp(r.cost - base.cost)} €</strong></div>` : '<div class="muted">naujas – ne čia</div>'}` : `<div class="okt">${newHere ? 'savo ' + Math.max(...r.nn) + ' vnt' : 'užtenka mazgo savų'}</div>`;
+      return `<button type="button" class="b3o${rec ? ' rec' : ''}" data-b3t="${i}:${r.m}" aria-pressed="${r.m === sel}"><span class="eb">${rec ? 'Rekomenduojama' : kind}</span><b>${hhmm(r.m)}</b>${txt}</button>`;
+    }).join('')}</div>`;
+  h += b3chart(cur, cur.nn, `Betonvežiai · ${view === 'V' ? 'visi mazgai' : B3N[view]} · ${view === 'V' ? Object.values(D.trips).reduce((a, b) => a + b, 0) : D.trips[view]} reisai${newHere ? ' · pasirinkta ' + hhmm(sel) : ''}`, req, sel, newHere);
+  // laiko juosta
+  let cells = '';
+  for (let hc = 0; hc < 12; hc++) { const need = Math.max(cur.BT[2 * hc] + cur.nn[2 * hc], cur.BT[2 * hc + 1] + cur.nn[2 * hc + 1]), free = cur.own1 - need; const c = free >= 0 ? 'g' : need <= cur.own2 ? 'y' : 'r'; cells += `<div class="${c}">${free >= 0 ? '+' + free : '−' + (-free)}</div>`; }
+  h += `<span class="eb muted">Laiko juosta · turime laisvų (+) arba trūksta (−)</span><div class="b3axrow"><i></i><div class="b3hrs">${Array.from({ length: 12 }, (_, k) => `<span>${String(6 + k).padStart(2, '0')}</span>`).join('')}</div><i></i></div><div class="b3axrow"><i></i><div class="b3strip">${cells}</div><i></i></div>`;
+  const nm = view === 'V' ? 'Visi mazgai' : B3N[view];
+  let cl;
+  if (cur.T || cur.H.n) { const hrs = cur.H.lv.reduce((a, l) => a + l.hrs, 0); cl = `<b class="bad">${nm} · ${hhmm(sel)}: ${sp(cur.cost)} €</b> – ${[cur.T ? `pervažiuoja ${cur.T} C3 betonvežiai iš kitų mazgų (${cur.T} × ${TRF} €)` : '', cur.H.n ? `samdomi ${cur.H.n} (${cur.H.n} × 200 + ${hrs} val. × 60)` : ''].filter(Boolean).join(' + ')}.${newHere ? ` Naujas užsakymas prideda <b>${sp(cur.cost - base.cost)} €</b> (be jo – ${sp(base.cost)} €).` : ''}`; }
+  else cl = `<b class="okt">${nm} · ${hhmm(sel)}:</b> užtenka savų betonvežių${newHere ? ' – naujas užsakymas telpa.' : '.'}`;
+  h += `<div class="b3cost">${cl}<br><span class="muted">Ištisinė linija – mazgo C3 betonvežiai, brūkšninė – visi ${D.c3} C3 (pervažiavimas 140 €). Virš jos – samdomi: 200 € atvykimas + 60 €/val. nuo pirmo iki paskutinio reiso, ir laukiant (oranžinis brūkšniavimas).</span></div>`;
+  const s = simTrips(o, plant, sel - 360, 'x');
+  h += `<span class="eb muted">Siurbliai · atvažiavimas 60 min, grįžimas / pervažiavimas 60 min</span><div class="b3pumps">${b3pumps(D, o, sel, s.last + 360)}</div>`;
+  h += `<div class="legend">${window.BPDB.B3PADS.map((p) => `<span><i style="background:${B3C[p]}"></i>${B3N[p]}</span>`).join('')}<span><i style="background:#F5C518;box-shadow:inset 0 0 0 1px #15171A"></i>naujas užsakymas</span><span><i style="border-top:2px solid #1E8A5A;height:0"></i>mazgo C3</span><span><i style="border-top:2px dashed #1E8A5A;height:0"></i>+ pervažiuojantys</span><span><i class="b3env-i"></i>samdyti (apmokami)</span><span><i style="background:#D2452F;opacity:.6"></i>persidengia</span></div></div>`;
+  return h;
+}
+
 /* ---------- AI ---------- */
 const TOOL = {
   name: 'uzsakymo_juodrastis',
@@ -502,7 +624,7 @@ function orderHTML(L, o, i, done) {
       h += `<div class="cap"><span class="eb muted">Ar galime priimti · ${PLANTS[o.plant].name} · ${o.date} ${S.bg ? (useDb() ? '· fonas – tikras BetonPro tos dienos planas' : isWork(o.date) ? '· su tipinės dienos fonu' : '') : ''}</span>
         <div class="${cap.opts[0].ok ? 'okbox' : 'warn'}">${cap.opts[0].ok ? 'Prašomu laiku ' + fmt(cap.S0) + ' galima priimti.' : 'Prašomu laiku ' + fmt(cap.S0) + ' negalima: ' + esc(cap.opts[0].why.join(', ')) + '.'} ${ch.s.self ? 'Klientas pasiima pats – betonvežiai neužimami.' : `${ch.s.n} ${nr(ch.s.n)} po ≤7 m³ · intervalas ${ch.s.U} min · kelionė ${ch.s.T} min · krovimas ${fmt(ch.s.ls)}–${fmt(ch.s.trips[ch.s.n - 1][4] + LOAD)}`}${ch.pumpId ? ' · siurblys ' + ch.pumpId : ''}</div>
         <div class="opts" role="group" aria-label="Laiko pasirinkimai">${cap.opts.map((x, k) => `<button type="button" class="opt" data-pick="${i}:${k}" aria-pressed="${k === pick}" ${done ? 'disabled' : ''}><b>${fmt(x.Sm)}</b><span>${x.kind === 'req' ? 'kaip prašo' : x.kind === 'hire' ? '+' + x.hire + ' samdyt. betonv.' : 'laisvas langas'}${k === cap.def && x.kind !== 'req' ? ' · ' + BP + ' siūlo' : ''}</span><span style="color:${x.ok ? '#17704A' : '#B23A26'}">${x.ok ? 'galima' : esc(x.why[0] || '')}</span></button>`).join('')}</div>
-        ${ch.s.self ? '' : `<div class="row2"><span class="rl">Betonvežiai<br>riba ${ch.lim}</span><div>${chartHTML(ch.base, ch.nt, o.plant, ch.lim, 10)}</div></div>`}
+        ${useDb() && window.BPDB.b3day ? b3cHTML(o, oid, i, done) : ch.s.self ? '' : `<div class="row2"><span class="rl">Betonvežiai<br>riba ${ch.lim}</span><div>${chartHTML(ch.base, ch.nt, o.plant, ch.lim, 10)}</div></div>`}
       </div>`;
     } else h += `<div class="cap"><span class="warn">Talpai patikrinti reikia datos, mazgo ir kiekio.</span></div>`;
   }
@@ -673,6 +795,8 @@ function bind() {
     if (t.id === 'addOrder') { S.ed[S.sel].orders.push(blankOrder()); save(); renderLetters(); return; }
     if (t.dataset.del != null) { S.ed[S.sel].orders.splice(Number(t.dataset.del), 1); save(); renderLetters(); return; }
     if (t.dataset.rcp) { const o = curOrder(t); if (o) { o.recipeId = Number(t.dataset.rcp); save(); renderLetters(); } return; }
+    if (t.dataset.b3v) { const [i, v] = t.dataset.b3v.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).v = v; save(); keep(renderDetail); b3scroll(); return; }
+    if (t.dataset.b3t) { const [i, m] = t.dataset.b3t.split(':'); const oid = S.sel + ':' + i; S.b3 = S.b3 || {}; (S.b3[oid] = S.b3[oid] || {}).t = Number(m); save(); keep(renderDetail); b3scroll(); return; }
     if (t.dataset.pick) { const [i, k] = t.dataset.pick.split(':').map(Number); S.ed[S.sel].orders[i].pick = k; save(); renderLetters(); return; }
     if (t.id === 'noteSend') { const v = $('#noteTa').value.trim(); if (!v) return; (S.notes[S.sel] = S.notes[S.sel] || []).push(v); delete S.nd[S.sel]; save(); if (key()) runAI(S.sel); else { toast('Pastaba išsaugota. AI neprijungtas – juodraštį koreguokite ranka.'); renderLetters(); } return; }
     if (t.id === 'replyReset' || t.id === 'replyReset2') { const E = S.ed[S.sel]; E.reply = null; E.replyBase = null; save(); renderSide(); return; }

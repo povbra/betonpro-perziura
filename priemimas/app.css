@@ -438,3 +438,33 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none}
 .strip>div::before{display:none}
 .strip>.segf{flex-direction:row;display:inline-flex}
 .strip>.kprog{flex-direction:column}
+
+/* v18 – vienodas 40 px aukštis visiems mygtukams ir laukams */
+.btn,.btn-sm,.btn-go,.btn-act,.flt,.segb,.segf button,#noteSend,#toTop,#xrcAdd{height:40px;min-height:40px}
+.btn-sm{padding:0 12px;font-size:13px}
+.xb{width:40px;height:40px}
+.flt{padding:0 12px}
+input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],input[type=time],input[type=password],select{height:40px;box-sizing:border-box}
+.trg .pc input,.rp-r input[type=text]{height:40px}
+/* papildomi gavėjai */
+.rcx{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:8px;align-items:center;min-height:40px}
+.xdel{width:40px;height:40px;border:1px solid #C9CED4;background:#fff;cursor:pointer;color:#5A5F66;font-size:14px}
+.xdel:hover{background:var(--ink);color:#FAF9F6;border-color:var(--ink)}
+.xadd{display:flex;gap:8px;align-items:center;margin-top:8px}
+.xadd input{flex:1;min-width:0;height:40px;padding:0 10px;border:1px solid #C9CED4;background:#fff;font-size:13px}
+#xrcMsg{font-size:12px;color:#B42318;min-height:0}
+/* laiško paraštė (F) */
+.mfootF{margin-top:14px;padding-top:10px;border-top:3px solid #F5C518;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;user-select:none;cursor:default}
+.mfootF>span:first-child{font-size:12px;color:#5A5F66}
+.bp-logo{--F:16px;display:inline-flex;align-items:center;gap:calc(var(--F)*.4167);color:#0E0F11;line-height:1}
+.bp-logo svg{width:calc(var(--F)*1.4167);height:calc(var(--F)*1.4167);flex:none;display:block}
+.bp-logo .z{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:var(--F);letter-spacing:-.01em}
+.bp-logo .hub{position:relative;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:calc(var(--F)*.6667);padding:calc(var(--F)*.12) calc(var(--F)*.25);letter-spacing:.06em}
+.bp-logo .hub i{position:absolute;width:calc(var(--F)*.2917);height:calc(var(--F)*.2917);border:0 solid currentColor}
+.bp-logo .hub i:nth-child(1){left:0;top:0;border-left-width:calc(var(--F)*.0625);border-top-width:calc(var(--F)*.0625)}
+.bp-logo .hub i:nth-child(2){right:0;top:0;border-right-width:calc(var(--F)*.0625);border-top-width:calc(var(--F)*.0625)}
+.bp-logo .hub i:nth-child(3){left:0;bottom:0;border-left-width:calc(var(--F)*.0625);border-bottom-width:calc(var(--F)*.0625)}
+.bp-logo .hub i:nth-child(4){right:0;bottom:0;border-right-width:calc(var(--F)*.0625);border-bottom-width:calc(var(--F)*.0625)}
+/* siurblių eilutės – visos priima tempimą; kito tipo/įmonės – blankesnės */
+.b3pr.oth .b3pl{opacity:.7}
+.b3pr.oth.drop .b3pl{opacity:1}

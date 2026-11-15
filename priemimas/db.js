@@ -54,18 +54,27 @@
     const byCk = new Map(), byDate = new Map();
     all.forEach((o) => { (byCk.get(o.ck) || byCk.set(o.ck, []).get(o.ck)).push(o); (byDate.get(o.date) || byDate.set(o.date, []).get(o.date)).push(o); });
     // kainos iš sąskaitų eilučių
-    const pAll = new Map(), pCl = new Map(), pClT = new Map(), svc = new Map(), svcAll = { tr: [], atv: [], val: [], ext: [] };
+    const pAll = new Map(), pCl = new Map(), pClT = new Map(), svc = new Map(), svcAll = { tr: [], atv: [], val: [], ext: [] }, inv = [];
+    // siurblio tipas užsakymui: vežimų auto → automobilių ilgis (sąskaitose PUMP 36 irgi vadinamas „PUMI atvykimas / valandos“)
+    const pLen = new Map(), pk = (len) => len >= 40 ? '42' : len >= 30 ? '36' : '28';
+    if (CARS) V.rows.forEach((r) => { const c = CARS.get(clean(r[vi('auto')])); if (c && c.pump) { const id = String(r[vi('uzs_id')]); pLen.set(id, Math.max(pLen.get(id) || 0, c.len || (/pump/i.test(c.type) ? 36 : 28))); } });
     Sx.rows.forEach((r) => {
       const code = clean(r[si('kodas')]).toUpperCase(), q = Number(r[si('kiekis')]) || 0, p = Number(r[si('pard_kaina')]) || 0;
       const mat = clean(r[si('matas')]).toLowerCase();
       // paslaugos: transportas (reisas), PUMI atvykimas (reisas), PUMI valandos (val), papildoma valanda objekte (val)
       if ((mat === 'reisas' || mat === 'val') && p > 0) {
         const gm = clean(r[si('gaminys')]).toLowerCase(), kind = /transport/.test(gm) ? 'tr' : /pumi atvyk/.test(gm) ? 'atv' : /pumi val/.test(gm) ? 'val' : /papildoma valanda/.test(gm) ? 'ext' : null;
-        if (kind) { const c = ck(r[si('uzsakovas')]), d = clean(r[si('fakt_data')]); svcAll[kind].push(p); const m = svc.get(c) || svc.set(c, {}).get(c); const x = m[kind] || (m[kind] = { n: 0, last: '', lastP: 0, ps: [] }); x.n++; x.ps.push(p); if (d >= x.last) { x.last = d; x.lastP = p; } }
+        if (kind) {
+          const c = ck(r[si('uzsakovas')]), d = clean(r[si('fakt_data')]), kinds = [kind];
+          if (kind === 'atv' || kind === 'val') { const L = pLen.get(String(r[si('o_id')])); if (L) kinds.push(kind + pk(L)); }
+          const m = svc.get(c) || svc.set(c, {}).get(c);
+          kinds.forEach((kd) => { (svcAll[kd] = svcAll[kd] || []).push(p); const x = m[kd] || (m[kd] = { n: 0, last: '', lastP: 0, ps: [] }); x.n++; x.ps.push(p); if (d >= x.last) { x.last = d; x.lastP = p; } });
+        }
         return;
       }
       if (!code || q <= 0 || p <= 0 || !['', '0', 'm3', 'm³'].includes(mat)) return;
       const c = ck(r[si('uzsakovas')]), d = clean(r[si('fakt_data')]) || clean(r[si('salytis')]).slice(0, 10);
+      inv.push({ c, cl: clean(r[si('uzsakovas')]), obj: clean(r[si('objektas')]), pad: clean(r[si('padalinys')]), d, code, gm: clean(r[si('gaminys')]), p, ty: clean(r[si('kainos_tipas')]).toUpperCase() });
       const a = pAll.get(code) || pAll.set(code, { q: 0, s: 0, cost: 0, cq: 0 }).get(code);
       a.q += q; a.s += p * q; const sv = Number(r[si('savikaina')]) || 0; if (sv > 0) { a.cost += sv * q; a.cq += q; }
       const kk = c + '|' + code, b = pCl.get(kk) || pCl.set(kk, { q: 0, s: 0, last: '', lastP: 0, type: '' }).get(kk);
@@ -75,14 +84,14 @@
     });
     const cards = new Map();
     K.rows.forEach((r) => { const o = {}; K.cols.forEach((c, i) => { o[c] = r[i]; }); cards.set(ck(o.name), o); void ki; });
-    return { all, byCk, byDate, pAll, pCl, pClT, svc, svcAll, cards };
+    return { all, byCk, byDate, pAll, pCl, pClT, svc, svcAll, cards, inv };
   }
 
   function buildCars(AU, VZ) {
     if (!AU) return null;
     const zn = {}; if (VZ) VZ.rows.forEach((r) => { zn[r[0]] = clean(r[1]); });
     const ai = (k) => AU.cols.indexOf(k), m = new Map();
-    AU.rows.forEach((r) => { const own = zn[r[ai('transp_id')]] || ''; m.set(clean(r[ai('name')]), { type: clean(r[ai('tipas')]), owner: own.replace(/,?\s*UAB\b/g, '').trim(), c3: /^C3/i.test(own), pump: /pump|pumi/i.test(clean(r[ai('tipas')])) }); });
+    AU.rows.forEach((r) => { const own = zn[r[ai('transp_id')]] || ''; m.set(clean(r[ai('name')]), { type: clean(r[ai('tipas')]), owner: own.replace(/,?\s*UAB\b/g, '').trim(), c3: /^C3/i.test(own), pump: /pump|pumi/i.test(clean(r[ai('tipas')])) || String(r[ai('siurblys')]) === '1', len: Number(r[ai('ilgis')]) || 0 }); });
     return m;
   }
   // B3c forma: vienos dienos betonvežių užimtumas pagal mazgą (30 min langai 06:00–18:00), C3 betonvežiai, tikri siurbliai
@@ -179,7 +188,7 @@
   function lastAt(company, text, before) { const a = sameAddress(company, text, before); return a.length ? a[a.length - 1] : null; }
   function lastOrders(company, before, n) { return ordersOf(company).filter((o) => !before || (before.length > 10 ? (o.date + 'T' + (o.time || '00:00')) < before : o.date < before)).slice(-(n || 3)).reverse(); }
   // Siurblių parkas (BetonPro automobiliai, tipas Pump/Pumi): numeris, tipas, savininkas.
-  function pumpFleet() { return CARS ? Array.from(CARS.entries()).filter(([, v]) => v.pump).map(([k, v]) => ({ car: k, type: v.type, owner: v.owner, c3: v.c3 })) : []; }
+  function pumpFleet() { return CARS ? Array.from(CARS.entries()).filter(([, v]) => v.pump).map(([k, v]) => ({ car: k, type: v.type, owner: v.owner, c3: v.c3, len: v.len })) : []; }
   function factsOn(company, date) { return ordersOf(company).filter((o) => o.date === date); }
   function usedCodes(company) { return new Set(ordersOf(company).map((o) => o.code.toUpperCase())); }
   function price(code, company) {
@@ -194,11 +203,22 @@
   // Paslaugų kainos klientui iš sąskaitų: transportas €/reisą, PUMI atvykimas, PUMI €/val., papildoma valanda objekte. Klientui – paskutinė, kitaip mediana.
   function services(company) {
     if (!IDX) return null;
-    const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : null; };
+    const med = (a) => { const b = (a || []).slice().sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : null; };
     let m = null; for (const k of keys(company || '')) { if (IDX.svc.get(k)) { m = IDX.svc.get(k); break; } }
     const one = (kind) => { const c = m && m[kind]; return { client: c ? c.lastP : null, n: c ? c.n : 0, med: med(IDX.svcAll[kind]) }; };
-    return { tr: one('tr'), atv: one('atv'), val: one('val'), ext: one('ext') };
+    const byT = {}; ['28', '36', '42'].forEach((k) => { byT[k] = { atv: one('atv' + k), val: one('val' + k) }; });
+    return { tr: one('tr'), atv: one('atv'), val: one('val'), ext: one('ext'), byT };
   }
+  // Betono kainos iš sąskaitų kitiems klientams: pagal objektą (žodžiai), mazgą, klientą. Grąžina paskutinę kainą kiekvienam klientas+receptas.
+  const W = (s) => Array.from(new Set(String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter((w) => w.length >= 5 && !/^(betono|uzsakymas|gatve|kaimas|rajonas|lietuva|savivaldybe|sveiki|pagarbiai)$/.test(w))));
+  const cls = (gm) => (gm.match(/C\d{1,2}\/\d{1,2}[^ ,;]*/) || [''])[0].slice(0, 40);
+  function lastPrices(rows, n) {
+    const m = new Map(); rows.forEach((x) => { const k = x.c + '|' + x.code; const y = m.get(k); if (!y || x.d >= y.d) m.set(k, x); });
+    return Array.from(m.values()).sort((a, b) => b.d.localeCompare(a.d)).slice(0, n || 12).map((x) => ({ client: x.cl, obj: x.obj, plant: x.pad, date: x.d, code: x.code, cls: cls(x.gm), p: x.p, ty: x.ty || '?' }));
+  }
+  function pricesAt(text, n) { if (!IDX) return []; const w = W(text); if (!w.length) return []; return lastPrices(IDX.inv.filter((x) => { const o = x.obj.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); return w.some((k) => o.includes(k.slice(0, 6))); }), n); }
+  function pricesPlant(plantName, n) { if (!IDX || !plantName) return []; const pn = String(plantName).toLowerCase().slice(0, 6); return lastPrices(IDX.inv.filter((x) => x.pad.toLowerCase().includes(pn)), n); }
+  function pricesClient(text, n) { if (!IDX) return []; const w = Array.from(new Set(String(text || '').toLowerCase().split(/[^a-ząčęėįšųūž0-9]+/).filter((x) => x.length >= 3 && !/^(kainas|kainos|kaina|naudok|naudojamas|paimk|kitiems|klientams|betono|siurblio|grupei|pagal|tiek|patikrink|istorija|tikrai|uzsakymu|užsakymų)$/.test(x)))); if (!w.length) return []; const hit = new Set(); IDX.inv.forEach((x) => { const cl = x.cl.toLowerCase(); if (w.some((k) => k.length >= 3 && (cl.split(/[^a-ząčęėįšųūž0-9]+/).includes(k) || (k.length >= 6 && cl.includes(k.slice(0, 6)))))) hit.add(x.c); }); return lastPrices(IDX.inv.filter((x) => hit.has(x.c)), n); }
   // fonas: tikri tos dienos BetonPro reisai trims mazgams. Formatas kaip app.js: [plant, oid, own, pump, loadStart, arrive, return, q, ck]
   function dayTrips(date, LOAD) {
     if (!IDX) return [];
@@ -216,5 +236,5 @@
   }
   function dayInfo(date) { const os = IDX ? (IDX.byDate.get(date) || []).filter((o) => o.plant) : []; const cars = {}; os.forEach((o) => { cars[o.plant] = cars[o.plant] || new Set(); o.trips.forEach((t) => t.car && cars[o.plant].add(t.car)); }); return { n: os.length, m3: os.reduce((s, o) => s + o.m3, 0), trips: os.reduce((s, o) => s + o.trips.length, 0), cars: Object.fromEntries(Object.entries(cars).map(([k, v]) => [k, v.size])) }; }
 
-  window.BPDB = { REPO, st, tok, setTok, load, b3day, b3typical, B3PADS, B3NS, keys, ck, ordersOf, card, services, summary, sameAddress, lastAt, lastOrders, pumpFleet, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
+  window.BPDB = { REPO, st, tok, setTok, load, b3day, b3typical, B3PADS, B3NS, keys, ck, ordersOf, card, services, summary, sameAddress, lastAt, lastOrders, pumpFleet, factsOn, usedCodes, price, pricesAt, pricesPlant, pricesClient, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
 })();

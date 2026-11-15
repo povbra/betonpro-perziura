@@ -339,6 +339,7 @@ function sysPrompt() {
     'Jei laiške tik parašas, o užsakymas priede – imk iš priedo. Jei priedo nėra arba neaišku – tipas „klausimas“.',
     (window.BPDB && window.BPDB.letters ? 'Laiškai su tikrais kontaktais – kontaktinius asmenis ir telefonus perrašyk tiksliai.' : 'Laiškų vardai ir kontaktai užkoduoti (pvz. „A. S.“, „+370 6•• •• •••“) – taip ir palik.'),
     'Jei pateikta KLIENTO ISTORIJA iš BetonPro – naudok ją mazgui, objekto adresui ir pristatymo būdui nustatyti (tam pačiam objektui klientas paprastai kraunasi tame pačiame mazge). Betono savybes vis tiek imk tik iš laiško; istorijos receptą minėk tik pastabose.',
+    'KAINORAŠTIS (be PVM): betonas – recepto kainoraštis €/m³ (sistema įrašo pati); PUMI 28/29 siurblys – atvykimas 180 €, darbas 80 €/val.; PUMP 36 ir PUMP 42 kainoraščio sistemoje nėra. Jei klientas klausia kainų arba jam receptas dar netiektas – sprendime siūlyk kainą pagal kainoraštį (konkretūs skaičiai), o ne rašyk, kad kainų nėra.',
     'Rašyk lietuviškai, dalykiškai.'
   ].join('\n');
 }
@@ -430,6 +431,10 @@ function sig(L) {
   return 'Pagarbiai\n' + (j ? 'Justina Kavaliauskaitė' : 'Alina Veber') + '\nVadybininkė · UAB „C3 Betonas“\nuzsakymai@c3betonas.lt';
 }
 function recipeById(id) { return RECIPES.find((r) => r.id === Number(id)); }
+// Kainoraštis (be PVM). Betonas – recepto kainoraštis €/m³; PUMI – mediana iš BetonPro sąskaitų (PUMI atvykimas 180 €, valanda 80 €).
+const PUMP_KAIN = { pumi: { atv: 180, val: 80 } };
+function pumpKain(o) { const len = Number(o.pump && o.pump.len) || 28; return len <= 29 ? Object.assign({ lab: 'PUMI ' + len }, PUMP_KAIN.pumi) : null; }
+function clientPrice(r, o) { const pr = DBX() && r ? window.BPDB.price(r.code, o.client) : null; return pr && pr.client != null ? pr.client : null; }
 function orderLine(o, cap) {
   const r = recipeById(o.recipeId), ch = cap && cap.opts[o.pick == null ? cap.def : o.pick];
   const t = ch ? fmt(ch.Sm) : (o.time || '[laikas]');
@@ -439,6 +444,8 @@ function orderLine(o, cap) {
   lines.push((o.mode === 'savivartis' ? 'Mazgas: ' + PLANTS[o.plant].name + ' (' + PLANTS[o.plant].area + ')' : 'Objektas: ' + ([o.object, o.address].filter((x) => x && !/^nenurodyt/i.test(x)).join(', ') || '[objektas]')));
   lines.push('Betonas: ' + what + ', ' + (o.qty ? String(o.qty).replace('.', ',') : '[kiekis]') + ' m³' + (o.additives ? ' · ' + o.additives : ''));
   if (o.mode !== 'savivartis') lines.push('Siurblys: ' + (o.pump && o.pump.need ? (ch && ch.pumpId ? ch.pumpId : (o.pump.len ? o.pump.len + ' m' : 'reikia')) : (o.mode === 'kriause' ? 'nereikia, pylimas iš kriaušės' : 'nereikia')));
+  if (r && o.mode !== 'atsaukti') { const cp = clientPrice(r, o); lines.push(cp != null ? 'Kaina: ' + eur(cp) + ' be PVM (pagal ankstesnes sąlygas)' : 'Kaina pagal kainoraštį: ' + eur(r.price) + ' be PVM'); }
+  if (o.mode !== 'savivartis' && o.pump && o.pump.need) { const pk = pumpKain(o); lines.push(pk ? 'Siurblys ' + pk.lab + ' pagal kainoraštį: atvykimas ' + pk.atv + ' €, darbas ' + pk.val + ' €/val. be PVM' : 'Siurblio ' + (o.pump.len || '') + ' m kainą patvirtinsime atskirai.'); }
   return { text: lines.join('\n'), changed: ch && o.time && hm(o.time) != null && ch.Sm !== hm(o.time) ? { asked: o.time, got: t, why: (cap.opts[0].why || []).join(', ') } : null };
 }
 function genReply(id) {
@@ -651,8 +658,8 @@ function rcpRow(x, o, disabled, selectable) {
   const r = x.r, on = r.id === Number(o.recipeId);
   const pr = r.props.map((p) => `<span class="pchip${x.extra.includes(p) ? ' extra' : ''}">${esc(p)}</span>`).join(' ');
   return `<button type="button" class="rcp-row" data-rcp="${r.id}" aria-pressed="${on}" ${disabled && !on ? 'disabled' : ''}>
-    <span class="rcp-l1"><b>${esc(r.code)}</b>${pr}${r.slump ? `<span class="pchip">${r.slump}</span>` : ''}${r.dmax ? `<span class="pchip">Dmax${r.dmax}</span>` : ''}<span class="nm">${esc(r.cement || '')}</span>${(() => { const pq = DBX() && o.client ? window.BPDB.price(r.code, o.client) : null; return pq && pq.client == null ? '<span class="st st-new" style="flex:none">ŠIAM KLIENTUI NETIEKTA</span>' : ''; })()}${on ? '<span class="st st-ok" style="flex:none">PARINKTA</span>' : ''}</span>
-    <span class="rcp-l2">${(() => { const pr = DBX() ? window.BPDB.price(r.code, o.client) : null; return pr ? `${o.client && pr.client != null ? '<span>šiam klientui <b>' + eur(pr.client) + '</b> <span class="muted">(' + Math.round(pr.clientQ) + ' m³' + (pr.type ? ', ' + esc(pr.type) : '') + ')</span></span>' : ''}<span>vidutinė <b>${eur(pr.avg)}</b></span>` : ''; })()}${x.used && x.used.has && x.used.has(String(r.code).toUpperCase()) ? '<span class="st st-ok" style="flex:none">klientas ėmė</span>' : ''}<span>kainoraštis <b>${r.price.toFixed(2).replace('.', ',')} €/m³</b></span><span>savikaina <b>${r.cost.toFixed(2).replace('.', ',')} €/m³</b></span><span>${!selectable && x.extra.length ? '<span style="color:#8A6A00">neprašyta: ' + esc(x.extra.join(', ')) + '</span>' : 'marža ' + (r.price - r.cost).toFixed(2).replace('.', ',') + ' €/m³'}</span></span></button>`;
+    <span class="rcp-l1"><b>${esc(r.code)}</b>${pr}${r.slump ? `<span class="pchip">${r.slump}</span>` : ''}${r.dmax ? `<span class="pchip">Dmax${r.dmax}</span>` : ''}<span class="nm">${esc(r.cement || '')}</span>${(() => { if (!DBX() || !o.client) return ''; const pq = window.BPDB.price(r.code, o.client), took = (pq && pq.client != null) || (x.used && x.used.has && x.used.has(String(r.code).toUpperCase())); return took ? '<span class="st st-took" style="flex:none">ŠIAM KLIENTUI TIEKTA</span>' : '<span class="st st-new" style="flex:none">ŠIAM KLIENTUI NETIEKTA</span>'; })()}${on ? '<span class="st st-ok" style="flex:none">PARINKTA</span>' : ''}</span>
+    <span class="rcp-l2">${(() => { const pr = DBX() ? window.BPDB.price(r.code, o.client) : null; return pr ? `${o.client && pr.client != null ? '<span>šiam klientui <b>' + eur(pr.client) + '</b> <span class="muted">(' + Math.round(pr.clientQ) + ' m³' + (pr.type ? ', ' + esc(pr.type) : '') + ')</span></span>' : o.client ? '<span>siūloma <b>' + eur(r.price) + '</b> <span class="muted">(kainoraštis)</span></span>' : ''}<span>vidutinė <b>${eur(pr.avg)}</b></span>` : (DBX() && o.client ? '<span>siūloma <b>' + eur(r.price) + '</b> <span class="muted">(kainoraštis)</span></span>' : ''); })()}<span>kainoraštis <b>${r.price.toFixed(2).replace('.', ',')} €/m³</b></span><span>savikaina <b>${r.cost.toFixed(2).replace('.', ',')} €/m³</b></span><span>${!selectable && x.extra.length ? '<span style="color:#8A6A00">neprašyta: ' + esc(x.extra.join(', ')) + '</span>' : 'marža ' + (r.price - r.cost).toFixed(2).replace('.', ',') + ' €/m³'}</span></span></button>`;
 }
 function renderSide() {
   const L = LETTERS.find((x) => x.id === S.sel), el = $('#side');

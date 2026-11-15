@@ -205,4 +205,6 @@ a{color:var(--ink)}
 .rcp-q{display:block}.rcp-q .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .rcp-qi{width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--ink);background:#fff;font:inherit;font-size:13px}
 .rcp-qi:focus{outline:2px solid #F5C518;outline-offset:0}
+.rcp-l1 .st,.st.st-new,.st.st-took{display:inline-flex;align-items:center;height:22px;box-sizing:border-box;padding:0 7px;white-space:nowrap}
 .st.st-new{background:#EEF1F5;color:#3A4250;border:1px solid #C9D0DA}
+.st.st-took{background:var(--okl);color:var(--okt);border:1px solid #B5D8C4}

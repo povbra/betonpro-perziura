@@ -240,3 +240,19 @@ a{color:var(--ink)}
 .li-w{position:relative}
 .li-x{position:absolute;right:8px;bottom:8px;z-index:2;width:30px;height:30px;border:1px solid #B5D8C4;background:#E6F3EC;color:#17704A;font-weight:700;cursor:pointer}
 #toTop{position:fixed;right:18px;bottom:18px;z-index:20;height:40px;padding:0 14px;border:1px solid var(--ink);background:#fff;font:600 13px inherit;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+/* v3 – peržiūros pastabos III */
+.lnav{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0}
+.lnav .mono{font-size:12px}
+.order{border:1px solid var(--line);border-top:3px solid #15171A}
+.order + .order,.onav + .order{margin-top:6px}
+.ohd{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ohd .osum{flex:none}
+.osum2{font-size:12.5px;color:#3A3F45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.osum2 .bad{color:#B23A26}
+.b3idle{top:4px;bottom:4px;background:repeating-linear-gradient(-45deg,rgba(224,123,57,.45) 0 3px,transparent 3px 7px);border-top:1.5px solid #E07B39}
+.b3pr.nwr .b3pt{background:#FFFBEA}
+.b3win{top:0;bottom:0;background:rgba(210,69,47,.07);border-left:1.5px dashed #D2452F;border-right:1.5px dashed #D2452F}
+.b3mt.w{transform:none;top:2px;margin-left:3px;background:#fff;color:#D2452F;border:1px solid #D2452F;font-weight:500}
+.b3mt.lo{top:-36px}
+.b3o{flex-basis:168px}
+#replyFromFields{align-self:flex-start}

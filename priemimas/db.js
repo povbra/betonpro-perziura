@@ -86,7 +86,7 @@
     const os = IDX.byDate.get(date) || [], hmA = (s) => { const x = String(s || '').match(/(\d{1,2}):(\d{2})/); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
     const L = [], pj = new Map(), c3trips = new Map();
     os.forEach((o) => {
-      const tr = Math.max(10, Math.round((o.km || 20) / 40 * 60));
+      const tr = Math.max(10, Math.round((o.km || 20) / 50 * 60)); // kelionė: atstumas / 50 km/h
       const arrs = [];
       o.trips.forEach((t, j) => {
         const info = CARS ? CARS.get(t.car) : null;
@@ -95,11 +95,11 @@
         if (info && info.pump) { const k = o.k + '|' + t.car; if (!pj.has(k)) pj.set(k, { car: t.car, type: info.type, owner: info.owner, c3: info.c3, pad: o.pad, client: o.client, s: null, e: null, k: o.k }); return; }
         arrs.push(a);
         if (info && clientCar(info.owner, o.client)) return; // kliento betonvežis (pasiima pats)
-        const un = t.q ? Math.max(10, Math.round(20 * t.q / 7.5)) : 15;
-        L.push({ pad: o.pad, car: t.car, s: a - tr - 10, e: a + un + tr });
+        const un = Math.max(5, Math.round(5 * (t.q || 7.5))); // išsikrovimas 5 min/m³
+        L.push({ pad: o.pad, car: t.car, s: a - tr - 30, e: a + un + tr }); // pasikrovimas 30 min
         if (info && info.c3) { const c = c3trips.get(t.car) || c3trips.set(t.car, {}).get(t.car); c[o.pad] = (c[o.pad] || 0) + 1; }
       });
-      pj.forEach((p) => { if (p.k === o.k && arrs.length) { p.s = Math.min(...arrs); p.e = Math.max(...arrs) + 30; } });
+      pj.forEach((p) => { if (p.k === o.k && arrs.length) { p.s = Math.min(...arrs); p.e = Math.max(...arrs) + 40; } });
     });
     const pumps = Array.from(pj.values()).filter((p) => p.s != null);
     const c3all = CARS ? Array.from(CARS.entries()).filter(([, v]) => v.c3 && !v.pump).map(([k]) => k) : [];
@@ -167,6 +167,11 @@
     const w = words(text); if (!w.size) return [];
     return ordersOf(company).filter((o) => (!before || o.date < before) && Array.from(words(o.address)).some((x) => w.has(x)));
   }
+  // Paskutinis to paties objekto užsakymas (atstumas km, adresas, mazgas) – kelionės laikui ir objektui.
+  function lastAt(company, text, before) { const a = sameAddress(company, text, before); return a.length ? a[a.length - 1] : null; }
+  function lastOrders(company, before, n) { return ordersOf(company).filter((o) => !before || (before.length > 10 ? (o.date + 'T' + (o.time || '00:00')) < before : o.date < before)).slice(-(n || 3)).reverse(); }
+  // Siurblių parkas (BetonPro automobiliai, tipas Pump/Pumi): numeris, tipas, savininkas.
+  function pumpFleet() { return CARS ? Array.from(CARS.entries()).filter(([, v]) => v.pump).map(([k, v]) => ({ car: k, type: v.type, owner: v.owner, c3: v.c3 })) : []; }
   function factsOn(company, date) { return ordersOf(company).filter((o) => o.date === date); }
   function usedCodes(company) { return new Set(ordersOf(company).map((o) => o.code.toUpperCase())); }
   function price(code, company) {
@@ -183,16 +188,16 @@
     const out = [];
     (IDX.byDate.get(date) || []).forEach((o) => {
       if (!o.plant) return;
-      const T = Math.max(15, Math.min(120, Math.round((o.km || 30) * 1.2)));
+      const T = Math.max(10, Math.min(150, Math.round((o.km || 30) / 50 * 60)));
       o.trips.forEach((t, j) => {
         let arr = hm(t.at); if (arr == null) arr = hm(o.time) != null ? hm(o.time) + j * (o.interval || 20) : null;
         if (arr == null) return;
-        out.push([o.plant, 'db:' + o.k, 1, '', arr - T - LOAD, arr, arr + 20 + T, t.q || 0, o.ck]);
+        out.push([o.plant, 'db:' + o.k, 1, '', arr - T - LOAD, arr, arr + Math.round(5 * (t.q || 7.5)) + T, t.q || 0, o.ck]);
       });
     });
     return out;
   }
   function dayInfo(date) { const os = IDX ? (IDX.byDate.get(date) || []).filter((o) => o.plant) : []; const cars = {}; os.forEach((o) => { cars[o.plant] = cars[o.plant] || new Set(); o.trips.forEach((t) => t.car && cars[o.plant].add(t.car)); }); return { n: os.length, m3: os.reduce((s, o) => s + o.m3, 0), trips: os.reduce((s, o) => s + o.trips.length, 0), cars: Object.fromEntries(Object.entries(cars).map(([k, v]) => [k, v.size])) }; }
 
-  window.BPDB = { REPO, st, tok, setTok, load, b3day, b3typical, B3PADS, B3NS, keys, ck, ordersOf, card, summary, sameAddress, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
+  window.BPDB = { REPO, st, tok, setTok, load, b3day, b3typical, B3PADS, B3NS, keys, ck, ordersOf, card, summary, sameAddress, lastAt, lastOrders, pumpFleet, factsOn, usedCodes, price, dayTrips, dayInfo, get ready() { return !!IDX; }, get letters() { return LETTERS; } };
 })();

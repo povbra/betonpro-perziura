@@ -838,6 +838,7 @@ function filtered() {
     return true;
   });
 }
+const isMob = () => window.matchMedia('(max-width:820px)').matches;
 function renderLetters() { renderList(); renderDetail(); renderSide(); }
 // Matavimas: kiek užsakymų laiškų galima priimti iš karto (BP užpildė datą, kiekį, receptą; laikas galimas; klausti nereikia), kiek reikia pataisyti, kiek lieka klausimų klientui.
 function quickStats() {
@@ -962,7 +963,7 @@ function renderDetail() {
   const fl = filtered(), pos = fl.findIndex((x) => x.id === L.id), prv = pos > 0 ? fl[pos - 1] : null, nxt = pos >= 0 && pos < fl.length - 1 ? fl[pos + 1] : null;
   const FLAB = { all: 'Gauti', todo: 'Laukia peržiūros', none: 'Neanalizuoti', done: 'Patvirtinti', bad: '✗ Blogai', unev: 'Neįvertinti' };
   const ty = R && R.tipas ? (TYPES[R.tipas] || TYPES.naujas) : null, rd = !!(R && R.tipas);
-  let h = evalHTML(L.id) + `<nav class="lnav" aria-label="Laiškai"><button type="button" class="btn btn-ghost" data-lgo="${prv ? prv.id : ''}" ${prv ? '' : 'disabled'}>← Ankstesnis</button><span class="mono muted">${pos >= 0 ? pos + 1 : '–'} iš ${fl.length} · ${esc(FLAB[S.filter] || '')}</span><button type="button" class="btn btn-dark" data-lgo="${nxt ? nxt.id : ''}" ${nxt ? '' : 'disabled'}>Kitas laiškas →</button></nav>`;
+  let h = evalHTML(L.id) + `<nav class="lnav" aria-label="Laiškai"><button type="button" class="btn mback" data-mback>← Visi laiškai</button><button type="button" class="btn btn-ghost" data-lgo="${prv ? prv.id : ''}" ${prv ? '' : 'disabled'}>← Ankstesnis</button><span class="mono muted">${pos >= 0 ? pos + 1 : '–'} iš ${fl.length} · ${esc(FLAB[S.filter] || '')}</span><button type="button" class="btn btn-dark" data-lgo="${nxt ? nxt.id : ''}" ${nxt ? '' : 'disabled'}>Kitas laiškas →</button></nav>`;
   h += `<article class="card lcard"><div class="lbar">${LOGO('#FAF9F6')}<b>${esc(ty ? ty.lab : 'Naujas laiškas')}</b><span style="flex:1"></span><span class="mono">${esc(L.box)} · ${L.received.replace('T', ' ').slice(0, 16)} · ${esc(L.channel)}</span></div>
     <div class="lbody"><span class="ar lco">${esc(L.company)}</span>${clientChips(L)}
     <div class="lmsg"><div class="lmsg-h"><span><span class="eb">Laiško tekstas</span> · Tema: ${markText(L.subject || '', E, rd)}</span>${rd ? `<button type="button" class="lnk" data-msg="${L.id}">${S.msgOpen[L.id] ? 'Suskleisti laišką' : 'Rodyti visą laišką'}</button>` : ''}</div>
@@ -1482,7 +1483,8 @@ function bind() {
     if (t.classList.contains('nvl')) { S.view = t.dataset.view; save(); renderAll(); return; }
     if (t.dataset.goto) { S.view = t.dataset.goto; if (t.dataset.date) S.loadDate = t.dataset.date; save(); renderAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.lgo != null) { if (t.dataset.lgo) { S.sel = t.dataset.lgo; save(); renderLetters(); scrollSel(); window.scrollTo({ top: 0 }); } return; }
-    if (t.classList.contains('li')) { S.sel = t.dataset.id; save(); renderLetters(); if (window.innerWidth < 1100) $('#detail').scrollIntoView({ behavior: 'smooth' }); return; }
+    if (t.classList.contains('li')) { S.sel = t.dataset.id; save(); renderLetters(); if (isMob()) { document.body.classList.add('m-detail'); window.scrollTo({ top: 0 }); } else if (window.innerWidth < 1100) $('#detail').scrollIntoView({ behavior: 'smooth' }); return; }
+    if (t.dataset.mback != null) { document.body.classList.remove('m-detail'); scrollSel(); const s = $('.li[aria-current="true"], .li.on'); if (s) s.scrollIntoView({ block: 'center' }); return; }
     if (t.dataset.f) { S.filter = t.dataset.f; save(); renderLetters(); return; }
     if (t.dataset.ld) { S.loadDate = t.dataset.ld; save(); renderLoad(); return; }
     if (t.id === 'runAll') { runAll(); return; }

@@ -611,12 +611,23 @@ function orderHTML(L, o, i, done) {
   h += histHTML(L, o);
   if (!cancel) {
     const ro = recipeOptions(o), cur = recipeById(o.recipeId);
-    h += `<div class="rcp"><span class="eb muted">Receptas · ${PLANTS[o.plant].name} · klientas prašo: ${ro.req.map((x) => `<span class="pchip">${esc(x)}</span>`).join(' ') || '—'}${ro.wantS ? ' <span class="pchip">' + ro.wantS + '</span>' : ''}</span>`;
+    const rqk = S.sel + ':' + i, rqv = (S.rqo && S.rqo[rqk]) || '';
+    h += `<div class="rcp"><label class="rcp-q"><span class="sr">Recepto paieška</span><input type="search" class="rcp-qi" data-rqo="${i}" value="${esc(rqv)}" placeholder="Ieškoti recepto: kodas, klasė, savybės" ${done ? 'disabled' : ''}></label>
+    <span class="eb muted">Receptas · ${PLANTS[o.plant].name} · klientas prašo: ${ro.req.map((x) => `<span class="pchip">${esc(x)}</span>`).join(' ') || '—'}${ro.wantS ? ' <span class="pchip">' + ro.wantS + '</span>' : ''}</span>`;
+    if (rqv.trim()) {
+      const tk = rqv.toUpperCase().split(/[\s,;]+/).filter(Boolean);
+      const hits = RECIPES.filter((r) => r.active && r.kind === 'betonas' && r.plant === o.plant && tk.every((t) => (r.code + ' ' + r.name + ' ' + r.props.join(' ') + ' ' + (r.slump || '') + ' DMAX' + (r.dmax || '') + ' ' + (r.cement || '')).toUpperCase().includes(t)));
+      h += `<span class="muted" style="font-size:12px">Paieška „${esc(rqv)}“ · ${PLANTS[o.plant].name}: ${hits.length} ${hits.length === 1 ? 'receptas' : 'receptai'}${hits.length > 8 ? ' (rodomi 8)' : ''}</span>`;
+      hits.slice(0, 8).forEach((r) => { const x = Object.assign({ r, used: ro.used }, classify(r, ro.req)); h += rcpRow(x, o, done, true); });
+      if (!hits.length) h += `<div class="warn">Pagal „${esc(rqv)}“ receptų nerasta.</div>`;
+    }
+    if (!rqv.trim()) {
     if (!ro.req.length) h += `<div class="warn">Nenurodyta markė – receptas neparinktas.</div>`;
     else if (!ro.fit.length) h += `<div class="err">${PLANTS[o.plant].name} mazge nėra recepto tiksliai su šiomis savybėmis. ${ro.elsewhere.length ? 'Yra kituose mazguose: ' + ro.elsewhere.slice(0, 4).map((r) => r.code + ' (' + r.plantName + ')').join(', ') + '.' : ''} Receptai su papildomomis savybėmis rodomi žemiau, bet jų siūlyti negalima.</div>`;
     ro.fit.slice(0, 5).forEach((x) => { x.used = ro.used; h += rcpRow(x, o, done, true); });
     if (ro.fit.length > 5) h += `<span class="muted" style="font-size:12px">+ dar ${ro.fit.length - 5} tinkami receptai (žr. skiltį „Receptai“).</span>`;
     if (ro.extra.length) h += `<details><summary class="muted" style="font-size:12.5px;cursor:pointer">Turi daugiau savybių nei prašė klientas (${ro.extra.length}) – nesiūloma</summary><div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${ro.extra.map((x) => rcpRow(x, o, true, false)).join('')}</div></details>`;
+    }
     h += `</div>`;
     const cap = capOptions(o, oid);
     if (cap) {
@@ -634,8 +645,8 @@ function rcpRow(x, o, disabled, selectable) {
   const r = x.r, on = r.id === Number(o.recipeId);
   const pr = r.props.map((p) => `<span class="pchip${x.extra.includes(p) ? ' extra' : ''}">${esc(p)}</span>`).join(' ');
   return `<button type="button" class="rcp-row" data-rcp="${r.id}" aria-pressed="${on}" ${disabled && !on ? 'disabled' : ''}>
-    <span class="rcp-l1"><b>${esc(r.code)}</b>${pr}${r.slump ? `<span class="pchip">${r.slump}</span>` : ''}${r.dmax ? `<span class="pchip">Dmax${r.dmax}</span>` : ''}<span class="nm">${esc(r.cement || '')}</span>${on ? '<span class="st st-ok" style="flex:none">PARINKTA</span>' : ''}</span>
-    <span class="rcp-l2">${(() => { const pr = DBX() ? window.BPDB.price(r.code, o.client) : null; return pr ? `<span>${o.client ? 'šiam klientui <b>' + (pr.client != null ? eur(pr.client) + '</b> <span class="muted">(' + Math.round(pr.clientQ) + ' m³' + (pr.type ? ', ' + esc(pr.type) : '') + ')</span>' : 'nepirko</b>') : ''}</span><span>vidutinė <b>${eur(pr.avg)}</b></span>` : ''; })()}${x.used && x.used.has && x.used.has(String(r.code).toUpperCase()) ? '<span class="st st-ok" style="flex:none">klientas ėmė</span>' : ''}<span>kainoraštis <b>${r.price.toFixed(2).replace('.', ',')} €/m³</b></span><span>savikaina <b>${r.cost.toFixed(2).replace('.', ',')} €/m³</b></span><span>${!selectable && x.extra.length ? '<span style="color:#8A6A00">neprašyta: ' + esc(x.extra.join(', ')) + '</span>' : 'marža ' + (r.price - r.cost).toFixed(2).replace('.', ',') + ' €/m³'}</span></span></button>`;
+    <span class="rcp-l1"><b>${esc(r.code)}</b>${pr}${r.slump ? `<span class="pchip">${r.slump}</span>` : ''}${r.dmax ? `<span class="pchip">Dmax${r.dmax}</span>` : ''}<span class="nm">${esc(r.cement || '')}</span>${(() => { const pq = DBX() && o.client ? window.BPDB.price(r.code, o.client) : null; return pq && pq.client == null ? '<span class="st st-new" style="flex:none">ŠIAM KLIENTUI NETIEKTA</span>' : ''; })()}${on ? '<span class="st st-ok" style="flex:none">PARINKTA</span>' : ''}</span>
+    <span class="rcp-l2">${(() => { const pr = DBX() ? window.BPDB.price(r.code, o.client) : null; return pr ? `${o.client && pr.client != null ? '<span>šiam klientui <b>' + eur(pr.client) + '</b> <span class="muted">(' + Math.round(pr.clientQ) + ' m³' + (pr.type ? ', ' + esc(pr.type) : '') + ')</span></span>' : ''}<span>vidutinė <b>${eur(pr.avg)}</b></span>` : ''; })()}${x.used && x.used.has && x.used.has(String(r.code).toUpperCase()) ? '<span class="st st-ok" style="flex:none">klientas ėmė</span>' : ''}<span>kainoraštis <b>${r.price.toFixed(2).replace('.', ',')} €/m³</b></span><span>savikaina <b>${r.cost.toFixed(2).replace('.', ',')} €/m³</b></span><span>${!selectable && x.extra.length ? '<span style="color:#8A6A00">neprašyta: ' + esc(x.extra.join(', ')) + '</span>' : 'marža ' + (r.price - r.cost).toFixed(2).replace('.', ',') + ' €/m³'}</span></span></button>`;
 }
 function renderSide() {
   const L = LETTERS.find((x) => x.id === S.sel), el = $('#side');
@@ -820,6 +831,7 @@ function bind() {
     if (t.id === 'noteTa') { S.nd[S.sel] = t.value; save(); return; }
     if (t.id === 'evCom') { const e = S.ev[S.sel] = S.ev[S.sel] || {}; e.c = t.value; e.at = new Date().toISOString(); save(); return; }
     if (t.id === 'subj') { S.ed[S.sel].subj = t.value; save(); return; }
+    if (t.dataset && t.dataset.rqo != null) { const k = S.sel + ':' + t.dataset.rqo; S.rqo = S.rqo || {}; S.rqo[k] = t.value; clearTimeout(bind._o); bind._o = setTimeout(() => { keep(renderDetail); const x = document.querySelector('.rcp-qi[data-rqo="' + t.dataset.rqo + '"]'); if (x) { x.focus(); x.setSelectionRange(x.value.length, x.value.length); } }, 250); return; }
     if (t.id === 'rq') { S.rq = t.value; clearTimeout(bind._q); bind._q = setTimeout(() => { renderRecipes(); const x = $('#rq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); return; }
   });
   document.addEventListener('change', (ev) => {

@@ -201,3 +201,8 @@ a{color:var(--ink)}
 .b3job{top:2px;bottom:2px;font-size:10px;line-height:18px;padding-left:4px;overflow:hidden;white-space:nowrap}
 .b3job.nw{background:#F5C518;box-shadow:inset 0 0 0 1.5px #15171A}
 .b3cf{top:0;bottom:0;background:#D2452F;opacity:.6}
+
+.rcp-q{display:block}.rcp-q .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.rcp-qi{width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--ink);background:#fff;font:inherit;font-size:13px}
+.rcp-qi:focus{outline:2px solid #F5C518;outline-offset:0}
+.st.st-new{background:#EEF1F5;color:#3A4250;border:1px solid #C9D0DA}

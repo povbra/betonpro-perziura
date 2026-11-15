@@ -366,7 +366,7 @@ async function runAI(id) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': k, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: S.model, max_tokens: 8000, system: sysPrompt() + '\n\nATSAKYMO FORMA: visada atsakyk tik iškviesdamas įrankį uzsakymo_juodrastis (jokio kito teksto).', tools: [TOOL], tool_choice: { type: 'auto' }, messages: [{ role: 'user', content: userPrompt(L) }] })
+      body: JSON.stringify({ model: S.model, max_tokens: 16000, system: sysPrompt() + '\n\nATSAKYMO FORMA: visada atsakyk tik iškviesdamas įrankį uzsakymo_juodrastis (jokio kito teksto). Laukas uzsakymai visada yra JSON masyvas (ne tekstas). Savaitės grafiko atveju kiekviena grafiko eilutė (data + konstrukcija/elementas) yra atskiras įrašas masyve uzsakymai; laukus pildyk trumpai, be pasikartojančių kontaktų.', tools: [TOOL], tool_choice: { type: 'auto' }, messages: [{ role: 'user', content: userPrompt(L) }] })
     });
     const j = await r.json();
     if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
@@ -377,7 +377,10 @@ async function runAI(id) {
       const m = txt.match(/\{[\s\S]*\}/);
       if (m) { try { inp = JSON.parse(m[0]); } catch (e) {} }
     }
+    if (inp) ['uzsakymai', 'truksta'].forEach((f) => { if (typeof inp[f] === 'string') { try { inp[f] = JSON.parse(inp[f]); } catch (e) { const m2 = inp[f].match(/\[[\s\S]*\]/); try { inp[f] = m2 ? JSON.parse(m2[0]) : []; } catch (e2) { inp[f] = []; } } } if (inp[f] && !Array.isArray(inp[f])) inp[f] = Object.values(inp[f]); });
+    if (j.stop_reason === 'max_tokens' && (!inp || !(inp.uzsakymai || []).length)) throw new Error('Laiškas per ilgas vienam atsakymui (pasiektas atsakymo ilgio limitas). Pabandykite dar kartą arba pasirinkite kitą modelį.');
     if (!inp || !inp.tipas) throw new Error('AI negrąžino struktūrizuoto atsakymo.');
+    if (inp.tipas !== 'ne_uzsakymas' && inp.tipas !== 'klausimas' && !(inp.uzsakymai || []).length) throw new Error('AI atpažino „' + (inp.tipas === 'grafikas' ? 'savaitės grafiką' : inp.tipas) + '“, bet negrąžino užsakymų eilučių. Spauskite „Pateikti“ dar kartą.');
     S.res[id] = Object.assign(inp, { _model: S.model, _ms: Date.now() - t0, _usage: j.usage, _at: new Date().toISOString() });
     S.aiLog.unshift({ id, ms: Date.now() - t0, in: j.usage && j.usage.input_tokens, out: j.usage && j.usage.output_tokens, model: S.model });
     S.aiLog = S.aiLog.slice(0, 60);

@@ -322,9 +322,10 @@ const TOOL = {
       klausimas_klientui: { type: ['string', 'null'], description: 'Vienas mandagus klausimas, jei be atsakymo negalima patvirtinti. Kitaip null.' },
       papildomas_tekstas: { type: ['string', 'null'], description: 'Neprivalomas 1–2 sakinių profesionalus papildymas atsakymui (pvz. dėl fibros, kristalų, lėtiklio, mokėtojo).' },
       atsakymas_ne_uzsakymui: { type: ['string', 'null'], description: 'Tik tipui ne_uzsakymas: trumpas profesionalus atsakymas be pasisveikinimo ir parašo, arba null, jei atsakyti nereikia.' },
-      paaiskinimas: { type: 'string', description: 'Trumpai: iš kurių laiško vietų paimti duomenys ir kas neaišku.' }
+      paaiskinimas: { type: 'string', description: 'Trumpai: iš kurių laiško vietų paimti duomenys ir kas neaišku. Rašyk dalykiškai, be pasiteisinimų (ne „neprisigalvojau“, „neturiu“), – ką radai ir ką darai.' },
+      sprendimas: { type: 'string', description: 'VISADA: konkretus siūlomas sprendimas vadybininkui, net jei duomenų trūksta. Pvz.: „Siūlau siurblio įkainį imti iš kainoraščio (Pumi 28 – X €/val.) ir atsakyme paklausti objekto vietos“. Jei yra vadybininko pastaba (P1…), pirmiausia atsakyk į ją: ką padarei arba ką siūlai daryti.' }
     },
-    required: ['tipas', 'santrauka', 'tikrumas', 'uzsakymai', 'truksta', 'paaiskinimas']
+    required: ['tipas', 'santrauka', 'tikrumas', 'uzsakymai', 'truksta', 'paaiskinimas', 'sprendimas']
   }
 };
 function sysPrompt() {
@@ -549,12 +550,7 @@ function renderDetail() {
     ${dbCardHTML(L)}
     <div class="card-b"><div class="msg">${esc(L.body)}</div>
     ${(L.attachments || []).map((a) => `<details class="att" ${R ? '' : 'open'}><summary>📎 ${esc(a.name)}</summary><pre>${esc(a.text)}</pre></details>`).join('')}
-    <div style="display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid #E6E8EB">
-      <span style="display:flex;flex-direction:column;gap:2px"><label for="noteTa" class="eb" style="color:#15171A;font-weight:600">Papildoma informacija</label><span class="muted" style="font-size:12.5px">Ko nėra laiške: ką klientas sakė telefonu, vadybos pastabos. ${BP} perskaitys iš naujo.</span></span>
-      ${notes.map((n, i) => `<div class="warn"><b class="badge">P${i + 1}</b> ${esc(n)}</div>`).join('')}
-      <textarea id="noteTa" rows="2" placeholder="pvz.: skambino – siurblio reikia 36 m, pradžia 9:00" ${done ? 'disabled' : ''}>${esc(S.nd[L.id] || '')}</textarea>
-      <div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-dark" id="noteSend" ${done ? 'disabled' : ''}>Pateikti ${BP}</button></div>
-    </div></div></article>`;
+    </div></article>`;
   if (busy[L.id]) h += `<div class="ai-band"><span class="spin"></span><span class="sum">${BP} skaito laišką ir priedus…</span></div>`;
   else if (!R || (!R.tipas && !R._err)) h += `<div class="card"><div class="card-b"><span>${BP} šio laiško dar neskaitė.</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-dark" id="runOne" ${key() ? '' : 'disabled'}>${BP} Analizuoti laišką</button><button type="button" class="btn" id="manual">Pildyti ranka</button></div>${key() ? '' : '<span class="warn">AI neprijungtas – įveskite API raktą skiltyje „Nustatymai ir AI“. Be AI galite pildyti juodraštį ranka.</span>'}</div></div>`;
   else if (R._err && !R.tipas) h += `<div class="err">AI klaida: ${esc(R._err)} <button type="button" class="btn btn-sm" id="runOne">Bandyti dar kartą</button></div>`;
@@ -563,7 +559,13 @@ function renderDetail() {
     h += `<div class="ai-band">${BP}<span class="tag" style="color:#fff"><i style="${ty.sq}"></i>${ty.lab}</span><span class="sum">${esc(R.santrauka)}</span><span class="conf">TIKRUMAS <i><b style="width:${R.tikrumas || 0}%"></b></i>${R.tikrumas || 0} %</span>${R._model ? `<span class="mono" style="font-size:11px;color:#B4B9BF">${esc(R._model)} · ${(R._ms / 1000).toFixed(1)} s</span>` : ''}</div>`;
     if (R._err) h += `<div class="err">Paskutinis bandymas nepavyko: ${esc(R._err)}</div>`;
     h += `<div class="note">${esc(R.paaiskinimas || '')}${(R.truksta || []).length ? `<br><b>Trūksta:</b> ${esc(R.truksta.join('; '))}` : ''}</div>`;
+    if (R.sprendimas) h += `<div class="okbox"><b>Siūlomas sprendimas:</b> ${esc(R.sprendimas)}</div>`;
   }
+  h += `<div style="display:flex;flex-direction:column;gap:8px;padding:14px 16px;background:#fff;border:1px solid #D5D8DC">
+      <span style="display:flex;flex-direction:column;gap:2px"><label for="noteTa" class="eb" style="color:#15171A;font-weight:600">Papildoma informacija</label><span class="muted" style="font-size:12.5px">Ko nėra laiške: ką klientas sakė telefonu, vadybos pastabos. ${BP} perskaitys iš naujo.</span></span>
+      ${notes.map((n, i) => `<div class="warn"><b class="badge">P${i + 1}</b> ${esc(n)}</div>`).join('')}
+      <textarea id="noteTa" rows="2" placeholder="pvz.: skambino – siurblio reikia 36 m, pradžia 9:00" ${done ? 'disabled' : ''}>${esc(S.nd[L.id] || '')}</textarea>
+      <div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-dark" id="noteSend" ${done ? 'disabled' : ''}>Pateikti ${BP}</button></div>`;
   if (E) {
     if (!E.orders.length && R && R.tipas !== 'ne_uzsakymas') h += `<div class="warn">Užsakymų nerasta.</div>`;
     E.orders.forEach((o, i) => { h += orderHTML(L, o, i, done); });

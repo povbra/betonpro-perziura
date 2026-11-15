@@ -187,8 +187,9 @@ function b3pumps(D, o, Sabs, last) {
   D.pumps.forEach((p) => { const a = Math.max(360, p.s), b = Math.min(1080, p.e); if (b <= a) return; const k = p.car; (rows.get(k) || rows.set(k, { car: p.car, type: p.type, owner: p.owner, c3: p.c3, jobs: [] }).get(k)).jobs.push({ a, b, pad: p.pad, client: p.client }); });
   const need = o.pump && o.pump.need && o.mode !== 'savivartis';
   const nj = need ? { a: Sabs, b: last + 30, pad: B3P[o.plant] || 13, client: 'Naujas · ' + (o.client || '') , nw: true } : null;
+  const plen = Number(o.pump && o.pump.len) || 28, pumi = plen <= 28, ptype = (pumi ? 'Pumi ' : 'Siurblys ') + plen;
   let chosen = null;
-  if (nj) { const list = Array.from(rows.values()).sort((x, y) => (y.c3 - x.c3) || x.car.localeCompare(y.car)); chosen = list.find((r) => r.jobs.every((j) => nj.b + 60 <= j.a - 60 || nj.a - 60 >= j.b + 60)); }
+  if (nj) { const list = Array.from(rows.values()).filter((r) => pumi ? /pumi/i.test(r.type) : !/pumi/i.test(r.type)).sort((x, y) => (y.c3 - x.c3) || x.car.localeCompare(y.car)); chosen = list.find((r) => r.jobs.every((j) => nj.b + 60 <= j.a - 60 || nj.a - 60 >= j.b + 60)); }
   const X = (m) => ((m - 360) / 720 * B3W).toFixed(2);
   const row = (lab, sub, jobs) => {
     jobs = jobs.slice().sort((a, b) => a.a - b.a);
@@ -202,7 +203,7 @@ function b3pumps(D, o, Sabs, last) {
   };
   let h = '';
   Array.from(rows.values()).sort((x, y) => (y.c3 - x.c3) || x.car.localeCompare(y.car)).forEach((r) => { h += row(r.car, r.type + ' · ' + (r.c3 ? 'C3' : r.owner.slice(0, 8)), r === chosen ? r.jobs.concat([nj]) : r.jobs); });
-  if (nj && !chosen) h += row('samdomas', 'siurblys', [nj]);
+  if (nj && !chosen) h += row('samdomas', ptype, [nj]);
   if (!h) h = '<span class="muted" style="font-size:12px">Šią dieną siurbliai nedirbo.</span>';
   return h;
 }

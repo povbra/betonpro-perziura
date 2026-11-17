@@ -666,6 +666,8 @@
     };
   }
   // El. laiškui tinkamas HTML: lentelės, tik įterpti stiliai (be <style>, <img>, <span>).
+  // Logotipas – PNG absoliučiu adresu, kad matytųsi ir el. laiške (SVG daugelis pašto programų nerodo).
+  var TONO_LOGO = 'https://povbra.github.io/betonpro-perziura/vairuotojas-tono/tono-logo.png';
   function ataskaitaHtml() {
     var o = S.ord_trans, r = rodikliai();
     var F = 'font-family:Arial,Helvetica,sans-serif;';
@@ -674,9 +676,9 @@
     var th = 'style="' + F + 'padding:8px 10px;background:#ECEAE4;font-size:12px;color:#4A4F55;text-align:left"';
     function kv(k, v) { return '<tr><td ' + tdl + '>' + esc(k) + '</td><td ' + td + '>' + v + '</td></tr>'; }
     var h = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #D9D6CE">' +
-      '<tr><td style="background:#15171A;padding:18px 22px"><b style="' + F + 'font-size:20px;color:#FAF9F6">BetonPro HUB</b>' +
-      '<div style="' + F + 'font-size:12px;color:#A9AEB4;margin-top:6px;letter-spacing:.06em">BETONO PRISTATYMO ATASKAITA</div></td></tr>' +
-      '<tr><td style="background:#F5C518;height:6px;line-height:6px;font-size:0">&nbsp;</td></tr>' +
+      '<tr><td style="background:#15171A;padding:18px 22px"><img src="' + TONO_LOGO + '" width="104" height="24" alt="TONO" style="display:block;border:0;width:104px;height:24px">' +
+      '<div style="' + F + 'font-size:12px;color:#A9AEB4;margin-top:8px;letter-spacing:.06em">BETONO PRISTATYMO ATASKAITA</div></td></tr>' +
+      '<tr><td style="background:#F9C718;height:6px;line-height:6px;font-size:0">&nbsp;</td></tr>' +
       '<tr><td style="padding:20px 22px 6px"><div style="' + F + 'font-size:20px;font-weight:bold;color:#15171A">' + esc(R.ord.adresas) + '</div>' +
       '<div style="' + F + 'font-size:14px;color:#4A4F55;margin-top:4px">' + dt(o.pakrovimas) + ' · Užsakymas ' + esc(R.ord.nr) + ' · Reisas ' + o.id + '</div></td></tr>' +
       '<tr><td style="padding:12px 22px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">' +
@@ -711,7 +713,7 @@
       '</table></td></tr>' +
       '<tr><td style="padding:12px 22px 20px;border-top:1px solid #E4E1D9"><div style="' + F + 'font-size:12px;line-height:1.5;color:#5A5F66">' +
       'Laikus patvirtino vairuotojas ' + esc(o.driver) + (S.pateikta ? ' ' + dt(S.pateikta) + ' ' + hm(S.pateikta) : '') + '. Pasikrovimo ir išvykimo iš mazgo laikus įrašė betono mazgo sistema.<br>' +
-      'Ataskaita parengta automatiškai sistemoje BetonPro HUB (testinė aplinka).</div></td></tr></table>';
+      'Tono · powered by BetonPro HUB. Ataskaita parengta automatiškai (testinė aplinka).</div></td></tr></table>';
     return h;
   }
   function kokybesEilutes() {
@@ -720,7 +722,7 @@
   }
   function ataskaitaTekstas() {
     var o = S.ord_trans, r = rodikliai();
-    var t = 'BETONO PRISTATYMO ATASKAITA – BetonPro HUB\n\n' + R.ord.adresas + '\n' + dt(o.pakrovimas) + ' · Užsakymas ' + R.ord.nr + ' · Reisas ' + o.id + '\n\n' +
+    var t = 'TONO · BETONO PRISTATYMO ATASKAITA\n\n' + R.ord.adresas + '\n' + dt(o.pakrovimas) + ' · Užsakymas ' + R.ord.nr + ' · Reisas ' + o.id + '\n\n' +
       'Klientas: ' + R.ord.gavejas + '\nBetonas: ' + R.ord_trans.kiekis + ' m³ ' + R.ord_trans.product + '\nBetonvežis: ' + R.ord_trans.cars + '\nVairuotojas: ' + o.driver + ', ' + o.driver_tel + '\nVežėjas: ' + o.transp + '\n\nPRISTATYMO LAIKAI\n';
     ATASK().forEach(function (s, i) {
       var tais = S.taisymai[s.f];
@@ -731,7 +733,7 @@
       '\nLaikas nuo W/C sąlyčio iki iškrovimo pabaigos: ' + minTxt(r.laikas_nuo_wc_salycio_iki_iskrovimo_pabaigos_min) + '\nAtstumas: ' + o.distance + ' km\n\nAtaskaita parengta automatiškai sistemoje BetonPro HUB (testinė aplinka).';
     return t;
   }
-  function tema() { return 'Betono pristatymo ataskaita · ' + R.ord.adresas + ' · ' + dt(S.ord_trans.pakrovimas) + ' · reisas ' + S.ord_trans.id; }
+  function tema() { return 'Tono · Betono pristatymo ataskaita · ' + R.ord.adresas + ' · ' + dt(S.ord_trans.pakrovimas) + ' · reisas ' + S.ord_trans.id; }
   function mailto() { return 'mailto:' + (CFG.ataskaitaKam || '') + '?subject=' + encodeURIComponent(tema()) + '&body=' + encodeURIComponent(ataskaitaTekstas()); }
 
   function siusti() {
